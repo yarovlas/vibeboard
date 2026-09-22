@@ -56,7 +56,7 @@ class User(UserBase, table=True):
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
     )
-    items: list[Item] = Relationship(back_populates="owner", cascade_delete=True)
+    boards: list[Board] = Relationship(back_populates="owner", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
@@ -71,44 +71,47 @@ class UsersPublic(SQLModel):
 
 
 # Shared properties
-class ItemBase(SQLModel):
-    title: str = Field(min_length=1, max_length=255)
-    description: str | None = Field(default=None, max_length=255)
+class BoardBase(SQLModel):
+    name: str = Field(min_length=1, max_length=255)
 
 
-# Properties to receive on item creation
-class ItemCreate(ItemBase):
+# Properties to receive on board creation
+class BoardCreate(BoardBase):
     pass
 
 
-# Properties to receive on item update
-class ItemUpdate(SQLModel):
-    title: str | None = Field(default=None, min_length=1, max_length=255)
-    description: str | None = Field(default=None, max_length=255)
+# Properties to receive on board update
+class BoardUpdate(SQLModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 # Database model, database table inferred from class name
-class Item(ItemBase, table=True):
+class Board(BoardBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+    updated_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
     )
     owner_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
-    owner: User | None = Relationship(back_populates="items")
+    owner: User | None = Relationship(back_populates="boards")
 
 
 # Properties to return via API, id is always required
-class ItemPublic(ItemBase):
+class BoardPublic(BoardBase):
     id: uuid.UUID
     owner_id: uuid.UUID
     created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
-class ItemsPublic(SQLModel):
-    data: list[ItemPublic]
+class BoardsPublic(SQLModel):
+    data: list[BoardPublic]
     count: int
 
 

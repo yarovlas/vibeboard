@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { itemsCreateItemData, itemsCreateItemErrors, itemsCreateItemResponses, itemsDeleteItemData, itemsDeleteItemErrors, itemsDeleteItemResponses, itemsReadItemData, itemsReadItemErrors, itemsReadItemResponses, itemsReadItemsData, itemsReadItemsErrors, itemsReadItemsResponses, itemsUpdateItemData, itemsUpdateItemErrors, itemsUpdateItemResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
+import type { boardsCreateBoardData, boardsCreateBoardErrors, boardsCreateBoardResponses, boardsDeleteBoardData, boardsDeleteBoardErrors, boardsDeleteBoardResponses, boardsReadBoardData, boardsReadBoardErrors, boardsReadBoardResponses, boardsReadBoardsData, boardsReadBoardsErrors, boardsReadBoardsResponses, boardsUpdateBoardData, boardsUpdateBoardErrors, boardsUpdateBoardResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -284,31 +284,33 @@ export class UtilsService {
     }
 }
 
-export class ItemsService {
+export class BoardsService {
     /**
-     * Read Items
+     * Read Boards
      *
-     * Retrieve items.
+     * Retrieve boards.
+     *
+     * Superusers see all boards, regular users only their own.
      */
-    public static readItems<ThrowOnError extends boolean = true>(options?: Options<itemsReadItemsData, ThrowOnError>) {
-        return (options?.client ?? client).get<itemsReadItemsResponses, itemsReadItemsErrors, ThrowOnError>({
+    public static readBoards<ThrowOnError extends boolean = true>(options?: Options<boardsReadBoardsData, ThrowOnError>) {
+        return (options?.client ?? client).get<boardsReadBoardsResponses, boardsReadBoardsErrors, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/api/v1/items/',
+            url: '/api/v1/boards/',
             ...options
         });
     }
     
     /**
-     * Create Item
+     * Create Board
      *
-     * Create new item.
+     * Create new board.
      */
-    public static createItem<ThrowOnError extends boolean = true>(options: Options<itemsCreateItemData, ThrowOnError>) {
-        return (options.client ?? client).post<itemsCreateItemResponses, itemsCreateItemErrors, ThrowOnError>({
+    public static createBoard<ThrowOnError extends boolean = true>(options: Options<boardsCreateBoardData, ThrowOnError>) {
+        return (options.client ?? client).post<boardsCreateBoardResponses, boardsCreateBoardErrors, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/api/v1/items/',
+            url: '/api/v1/boards/',
             ...options,
             headers: {
                 'Content-Type': 'application/json',
@@ -318,43 +320,43 @@ export class ItemsService {
     }
     
     /**
-     * Delete Item
+     * Delete Board
      *
-     * Delete an item.
+     * Delete a board.
      */
-    public static deleteItem<ThrowOnError extends boolean = true>(options: Options<itemsDeleteItemData, ThrowOnError>) {
-        return (options.client ?? client).delete<itemsDeleteItemResponses, itemsDeleteItemErrors, ThrowOnError>({
+    public static deleteBoard<ThrowOnError extends boolean = true>(options: Options<boardsDeleteBoardData, ThrowOnError>) {
+        return (options.client ?? client).delete<boardsDeleteBoardResponses, boardsDeleteBoardErrors, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/api/v1/items/{id}',
+            url: '/api/v1/boards/{id}',
             ...options
         });
     }
     
     /**
-     * Read Item
+     * Read Board
      *
-     * Get item by ID.
+     * Get board by ID.
      */
-    public static readItem<ThrowOnError extends boolean = true>(options: Options<itemsReadItemData, ThrowOnError>) {
-        return (options.client ?? client).get<itemsReadItemResponses, itemsReadItemErrors, ThrowOnError>({
+    public static readBoard<ThrowOnError extends boolean = true>(options: Options<boardsReadBoardData, ThrowOnError>) {
+        return (options.client ?? client).get<boardsReadBoardResponses, boardsReadBoardErrors, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/api/v1/items/{id}',
+            url: '/api/v1/boards/{id}',
             ...options
         });
     }
     
     /**
-     * Update Item
+     * Update Board
      *
-     * Update an item.
+     * Update a board.
      */
-    public static updateItem<ThrowOnError extends boolean = true>(options: Options<itemsUpdateItemData, ThrowOnError>) {
-        return (options.client ?? client).put<itemsUpdateItemResponses, itemsUpdateItemErrors, ThrowOnError>({
+    public static updateBoard<ThrowOnError extends boolean = true>(options: Options<boardsUpdateBoardData, ThrowOnError>) {
+        return (options.client ?? client).patch<boardsUpdateBoardResponses, boardsUpdateBoardErrors, ThrowOnError>({
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/api/v1/items/{id}',
+            url: '/api/v1/boards/{id}',
             ...options,
             headers: {
                 'Content-Type': 'application/json',
