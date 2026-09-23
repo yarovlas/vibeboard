@@ -9,7 +9,7 @@ from app.core.db import engine, init_db
 from app.main import app
 from app.models import Board, User
 from tests.utils.user import authentication_token_from_email
-from tests.utils.utils import get_superuser_token_headers
+from tests.utils.utils import get_first_user_token_headers
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -31,8 +31,8 @@ def client() -> Generator[TestClient]:
 
 
 @pytest.fixture(scope="module")
-def superuser_token_headers(client: TestClient) -> dict[str, str]:
-    return get_superuser_token_headers(client)
+def first_user_token_headers(client: TestClient) -> dict[str, str]:
+    return get_first_user_token_headers(client)
 
 
 @pytest.fixture(scope="module")

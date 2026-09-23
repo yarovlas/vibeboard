@@ -14,10 +14,10 @@ def random_email() -> str:
     return f"{random_lower_string()}@{random_lower_string()}.com"
 
 
-def get_superuser_token_headers(client: TestClient) -> dict[str, str]:
+def get_first_user_token_headers(client: TestClient) -> dict[str, str]:
     login_data = {
-        "username": settings.FIRST_SUPERUSER,
-        "password": settings.FIRST_SUPERUSER_PASSWORD,
+        "username": settings.FIRST_USER,
+        "password": settings.FIRST_USER_PASSWORD,
     }
     r = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)
     tokens = r.json()

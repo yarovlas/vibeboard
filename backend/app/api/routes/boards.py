@@ -23,34 +23,20 @@ def read_boards(
     session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100
 ) -> Any:
     """
-    Retrieve boards.
-
-    Superusers see all boards, regular users only their own.
+    Retrieve boards for the current user.
     """
 
-    if current_user.is_superuser:
-        count_statement = select(func.count()).select_from(Board)
-        count = session.exec(count_statement).one()
-        statement = (
-            select(Board)
-            .order_by(col(Board.updated_at).desc())
-            .offset(skip)
-            .limit(limit)
-        )
-    else:
-        count_statement = (
-            select(func.count())
-            .select_from(Board)
-            .where(Board.owner_id == current_user.id)
-        )
-        count = session.exec(count_statement).one()
-        statement = (
-            select(Board)
-            .where(Board.owner_id == current_user.id)
-            .order_by(col(Board.updated_at).desc())
-            .offset(skip)
-            .limit(limit)
-        )
+    count_statement = (
+        select(func.count()).select_from(Board).where(Board.owner_id == current_user.id)
+    )
+    count = session.exec(count_statement).one()
+    statement = (
+        select(Board)
+        .where(Board.owner_id == current_user.id)
+        .order_by(col(Board.updated_at).desc())
+        .offset(skip)
+        .limit(limit)
+    )
     boards = session.exec(statement).all()
 
     boards_public = [BoardPublic.model_validate(board) for board in boards]
@@ -65,7 +51,7 @@ def read_board(session: SessionDep, current_user: CurrentUser, id: uuid.UUID) ->
     board = session.get(Board, id)
     if not board:
         raise HTTPException(status_code=404, detail="Board not found")
-    if not current_user.is_superuser and (board.owner_id != current_user.id):
+    if board.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return board
 
@@ -98,7 +84,7 @@ def update_board(
     board = session.get(Board, id)
     if not board:
         raise HTTPException(status_code=404, detail="Board not found")
-    if not current_user.is_superuser and (board.owner_id != current_user.id):
+    if board.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     update_dict = board_in.model_dump(exclude_unset=True)
     board.sqlmodel_update(update_dict)
@@ -119,7 +105,7 @@ def delete_board(
     board = session.get(Board, id)
     if not board:
         raise HTTPException(status_code=404, detail="Board not found")
-    if not current_user.is_superuser and (board.owner_id != current_user.id):
+    if board.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     session.delete(board)
     session.commit()

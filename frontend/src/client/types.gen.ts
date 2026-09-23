@@ -191,10 +191,6 @@ export type UserCreate = {
      */
     is_active?: boolean;
     /**
-     * Is Superuser
-     */
-    is_superuser?: boolean;
-    /**
      * Full Name
      */
     full_name?: string | null;
@@ -216,10 +212,6 @@ export type UserPublic = {
      * Is Active
      */
     is_active?: boolean;
-    /**
-     * Is Superuser
-     */
-    is_superuser?: boolean;
     /**
      * Full Name
      */
@@ -264,10 +256,6 @@ export type UserUpdate = {
      * Is Active
      */
     is_active?: boolean | null;
-    /**
-     * Is Superuser
-     */
-    is_superuser?: boolean | null;
     /**
      * Full Name
      */

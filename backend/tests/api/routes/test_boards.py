@@ -8,12 +8,12 @@ from tests.utils.board import create_random_board
 
 
 def test_create_board(
-    client: TestClient, superuser_token_headers: dict[str, str]
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
     data = {"name": "Sprint 1 whiteboard"}
     response = client.post(
         f"{settings.API_V1_STR}/boards/",
-        headers=superuser_token_headers,
+        headers=first_user_token_headers,
         json=data,
     )
     assert response.status_code == 200
@@ -26,26 +26,33 @@ def test_create_board(
 
 
 def test_read_board(
-    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
-    board = create_random_board(db)
+    create_response = client.post(
+        f"{settings.API_V1_STR}/boards/",
+        headers=first_user_token_headers,
+        json={"name": "Board to read"},
+    )
+    assert create_response.status_code == 200
+    created = create_response.json()
+
     response = client.get(
-        f"{settings.API_V1_STR}/boards/{board.id}",
-        headers=superuser_token_headers,
+        f"{settings.API_V1_STR}/boards/{created['id']}",
+        headers=first_user_token_headers,
     )
     assert response.status_code == 200
     content = response.json()
-    assert content["name"] == board.name
-    assert content["id"] == str(board.id)
-    assert content["owner_id"] == str(board.owner_id)
+    assert content["name"] == "Board to read"
+    assert content["id"] == created["id"]
+    assert content["owner_id"] == created["owner_id"]
 
 
 def test_read_board_not_found(
-    client: TestClient, superuser_token_headers: dict[str, str]
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
     response = client.get(
         f"{settings.API_V1_STR}/boards/{uuid.uuid4()}",
-        headers=superuser_token_headers,
+        headers=first_user_token_headers,
     )
     assert response.status_code == 404
     content = response.json()
@@ -66,13 +73,19 @@ def test_read_board_not_enough_permissions(
 
 
 def test_read_boards(
-    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
-    create_random_board(db)
-    create_random_board(db)
+    for name in ("Board one", "Board two"):
+        r = client.post(
+            f"{settings.API_V1_STR}/boards/",
+            headers=first_user_token_headers,
+            json={"name": name},
+        )
+        assert r.status_code == 200
+
     response = client.get(
         f"{settings.API_V1_STR}/boards/",
-        headers=superuser_token_headers,
+        headers=first_user_token_headers,
     )
     assert response.status_code == 200
     content = response.json()
@@ -112,29 +125,36 @@ def test_read_boards_only_own_boards_for_regular_user(
 
 
 def test_update_board(
-    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
-    board = create_random_board(db)
+    create_response = client.post(
+        f"{settings.API_V1_STR}/boards/",
+        headers=first_user_token_headers,
+        json={"name": "Board to update"},
+    )
+    assert create_response.status_code == 200
+    created = create_response.json()
+
     data = {"name": "Updated board name"}
     response = client.patch(
-        f"{settings.API_V1_STR}/boards/{board.id}",
-        headers=superuser_token_headers,
+        f"{settings.API_V1_STR}/boards/{created['id']}",
+        headers=first_user_token_headers,
         json=data,
     )
     assert response.status_code == 200
     content = response.json()
     assert content["name"] == data["name"]
-    assert content["id"] == str(board.id)
-    assert content["owner_id"] == str(board.owner_id)
+    assert content["id"] == created["id"]
+    assert content["owner_id"] == created["owner_id"]
 
 
 def test_update_board_not_found(
-    client: TestClient, superuser_token_headers: dict[str, str]
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
     data = {"name": "Updated board name"}
     response = client.patch(
         f"{settings.API_V1_STR}/boards/{uuid.uuid4()}",
-        headers=superuser_token_headers,
+        headers=first_user_token_headers,
         json=data,
     )
     assert response.status_code == 404
@@ -158,12 +178,19 @@ def test_update_board_not_enough_permissions(
 
 
 def test_delete_board(
-    client: TestClient, superuser_token_headers: dict[str, str], db: Session
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
-    board = create_random_board(db)
+    create_response = client.post(
+        f"{settings.API_V1_STR}/boards/",
+        headers=first_user_token_headers,
+        json={"name": "Board to delete"},
+    )
+    assert create_response.status_code == 200
+    created = create_response.json()
+
     response = client.delete(
-        f"{settings.API_V1_STR}/boards/{board.id}",
-        headers=superuser_token_headers,
+        f"{settings.API_V1_STR}/boards/{created['id']}",
+        headers=first_user_token_headers,
     )
     assert response.status_code == 200
     content = response.json()
@@ -171,11 +198,11 @@ def test_delete_board(
 
 
 def test_delete_board_not_found(
-    client: TestClient, superuser_token_headers: dict[str, str]
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
     response = client.delete(
         f"{settings.API_V1_STR}/boards/{uuid.uuid4()}",
-        headers=superuser_token_headers,
+        headers=first_user_token_headers,
     )
     assert response.status_code == 404
     content = response.json()

@@ -288,9 +288,7 @@ export class BoardsService {
     /**
      * Read Boards
      *
-     * Retrieve boards.
-     *
-     * Superusers see all boards, regular users only their own.
+     * Retrieve boards for the current user.
      */
     public static readBoards<ThrowOnError extends boolean = true>(options?: Options<boardsReadBoardsData, ThrowOnError>) {
         return (options?.client ?? client).get<boardsReadBoardsResponses, boardsReadBoardsErrors, ThrowOnError>({
