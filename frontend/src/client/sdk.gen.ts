@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
+import type { boardsCreateBoardData, boardsCreateBoardErrors, boardsCreateBoardResponses, boardsDeleteBoardData, boardsDeleteBoardErrors, boardsDeleteBoardResponses, boardsReadBoardData, boardsReadBoardErrors, boardsReadBoardResponses, boardsReadBoardsData, boardsReadBoardsErrors, boardsReadBoardsResponses, boardsUpdateBoardData, boardsUpdateBoardErrors, boardsUpdateBoardResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -280,6 +280,88 @@ export class UtilsService {
             responseType: 'json',
             url: '/api/v1/utils/health-check/',
             ...options
+        });
+    }
+}
+
+export class BoardsService {
+    /**
+     * Read Boards
+     *
+     * Retrieve boards.
+     *
+     * Superusers see all boards, regular users only their own.
+     */
+    public static readBoards<ThrowOnError extends boolean = true>(options?: Options<boardsReadBoardsData, ThrowOnError>) {
+        return (options?.client ?? client).get<boardsReadBoardsResponses, boardsReadBoardsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Board
+     *
+     * Create new board.
+     */
+    public static createBoard<ThrowOnError extends boolean = true>(options: Options<boardsCreateBoardData, ThrowOnError>) {
+        return (options.client ?? client).post<boardsCreateBoardResponses, boardsCreateBoardErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Delete Board
+     *
+     * Delete a board.
+     */
+    public static deleteBoard<ThrowOnError extends boolean = true>(options: Options<boardsDeleteBoardData, ThrowOnError>) {
+        return (options.client ?? client).delete<boardsDeleteBoardResponses, boardsDeleteBoardErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Board
+     *
+     * Get board by ID.
+     */
+    public static readBoard<ThrowOnError extends boolean = true>(options: Options<boardsReadBoardData, ThrowOnError>) {
+        return (options.client ?? client).get<boardsReadBoardResponses, boardsReadBoardErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Update Board
+     *
+     * Update a board.
+     */
+    public static updateBoard<ThrowOnError extends boolean = true>(options: Options<boardsUpdateBoardData, ThrowOnError>) {
+        return (options.client ?? client).patch<boardsUpdateBoardResponses, boardsUpdateBoardErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
         });
     }
 }

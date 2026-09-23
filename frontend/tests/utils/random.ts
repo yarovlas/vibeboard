@@ -11,3 +11,6 @@ export const slugify = (text: string) =>
     .toLowerCase()
     .replace(/\s+/g, "-")
     .replace(/[^\w-]+/g, "")
+
+export const randomBoardName = () =>
+  `Board ${Math.random().toString(36).substring(7)}`

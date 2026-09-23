@@ -5,6 +5,66 @@ export type ClientOptions = {
 };
 
 /**
+ * BoardCreate
+ */
+export type BoardCreate = {
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * BoardPublic
+ */
+export type BoardPublic = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Owner Id
+     */
+    owner_id: string;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * BoardUpdate
+ */
+export type BoardUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+};
+
+/**
+ * BoardsPublic
+ */
+export type BoardsPublic = {
+    /**
+     * Data
+     */
+    data: Array<BoardPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * Body_login-login_access_token
  */
 export type Body_login_login_access_token = {
@@ -703,6 +763,155 @@ export type utilsHealthCheckResponses = {
 };
 
 export type utilsHealthCheckResponse = utilsHealthCheckResponses[keyof utilsHealthCheckResponses];
+
+export type boardsReadBoardsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/boards/';
+};
+
+export type boardsReadBoardsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type boardsReadBoardsError = boardsReadBoardsErrors[keyof boardsReadBoardsErrors];
+
+export type boardsReadBoardsResponses = {
+    /**
+     * Successful Response
+     */
+    200: BoardsPublic;
+};
+
+export type boardsReadBoardsResponse = boardsReadBoardsResponses[keyof boardsReadBoardsResponses];
+
+export type boardsCreateBoardData = {
+    body: BoardCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/boards/';
+};
+
+export type boardsCreateBoardErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type boardsCreateBoardError = boardsCreateBoardErrors[keyof boardsCreateBoardErrors];
+
+export type boardsCreateBoardResponses = {
+    /**
+     * Successful Response
+     */
+    200: BoardPublic;
+};
+
+export type boardsCreateBoardResponse = boardsCreateBoardResponses[keyof boardsCreateBoardResponses];
+
+export type boardsDeleteBoardData = {
+    body?: never;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{id}';
+};
+
+export type boardsDeleteBoardErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type boardsDeleteBoardError = boardsDeleteBoardErrors[keyof boardsDeleteBoardErrors];
+
+export type boardsDeleteBoardResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type boardsDeleteBoardResponse = boardsDeleteBoardResponses[keyof boardsDeleteBoardResponses];
+
+export type boardsReadBoardData = {
+    body?: never;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{id}';
+};
+
+export type boardsReadBoardErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type boardsReadBoardError = boardsReadBoardErrors[keyof boardsReadBoardErrors];
+
+export type boardsReadBoardResponses = {
+    /**
+     * Successful Response
+     */
+    200: BoardPublic;
+};
+
+export type boardsReadBoardResponse = boardsReadBoardResponses[keyof boardsReadBoardResponses];
+
+export type boardsUpdateBoardData = {
+    body: BoardUpdate;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{id}';
+};
+
+export type boardsUpdateBoardErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type boardsUpdateBoardError = boardsUpdateBoardErrors[keyof boardsUpdateBoardErrors];
+
+export type boardsUpdateBoardResponses = {
+    /**
+     * Successful Response
+     */
+    200: BoardPublic;
+};
+
+export type boardsUpdateBoardResponse = boardsUpdateBoardResponses[keyof boardsUpdateBoardResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;
