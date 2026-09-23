@@ -3,7 +3,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { LayoutGrid, Plus } from "lucide-react"
 import { type FormEvent, Suspense, useState } from "react"
 
@@ -32,17 +32,6 @@ function getBoardsQueryOptions() {
     queryKey: ["boards"],
   }
 }
-
-export const Route = createFileRoute("/_layout/boards/")({
-  component: Boards,
-  head: () => ({
-    meta: [
-      {
-        title: "Whiteboards - Vibeboard",
-      },
-    ],
-  }),
-})
 
 function CreateBoardButton() {
   const [isOpen, setIsOpen] = useState(false)
@@ -178,12 +167,12 @@ function BoardsList() {
   )
 }
 
-function Boards() {
+export function BoardsOverview() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Whiteboards</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
             Create and manage your whiteboards
           </p>

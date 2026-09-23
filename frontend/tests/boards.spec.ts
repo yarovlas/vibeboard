@@ -4,15 +4,15 @@ import { randomBoardName, randomEmail, randomPassword } from "./utils/random"
 import { logInUser } from "./utils/user"
 
 test("Boards page is accessible and shows correct title", async ({ page }) => {
-  await page.goto("/boards")
-  await expect(page.getByRole("heading", { name: "Whiteboards" })).toBeVisible()
+  await page.goto("/")
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
   await expect(
     page.getByText("Create and manage your whiteboards"),
   ).toBeVisible()
 })
 
 test("New whiteboard button is visible", async ({ page }) => {
-  await page.goto("/boards")
+  await page.goto("/")
   await expect(
     page.getByRole("button", { name: "New whiteboard" }),
   ).toBeVisible()
@@ -30,7 +30,7 @@ test.describe("Whiteboard management", () => {
 
   test.beforeEach(async ({ page }) => {
     await logInUser(page, email, password)
-    await page.goto("/boards")
+    await page.goto("/")
   })
 
   test("Create a new whiteboard and open it", async ({ page }) => {
@@ -57,7 +57,7 @@ test.describe("Whiteboard management", () => {
       page.getByText("Whiteboard created successfully"),
     ).toBeVisible()
 
-    await page.goto("/boards")
+    await page.goto("/")
     await page.getByRole("link", { name: new RegExp(name) }).click()
 
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible()
@@ -84,7 +84,7 @@ test.describe("Whiteboards empty state", () => {
     await createUser({ email, password })
     await logInUser(page, email, password)
 
-    await page.goto("/boards")
+    await page.goto("/")
 
     await expect(
       page.getByText("You don't have any whiteboards yet"),
