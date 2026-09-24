@@ -4,15 +4,15 @@ import { randomBoardName, randomEmail, randomPassword } from "./utils/random"
 import { logInUser } from "./utils/user"
 
 test("Boards page is accessible and shows correct title", async ({ page }) => {
-  await page.goto("/")
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
+  await page.goto("/boards")
+  await expect(page.getByRole("heading", { name: "Whiteboards" })).toBeVisible()
   await expect(
     page.getByText("Create and manage your whiteboards"),
   ).toBeVisible()
 })
 
 test("New whiteboard button is visible", async ({ page }) => {
-  await page.goto("/")
+  await page.goto("/boards")
   await expect(
     page.getByRole("button", { name: "New whiteboard" }),
   ).toBeVisible()
@@ -30,7 +30,7 @@ test.describe("Whiteboard management", () => {
 
   test.beforeEach(async ({ page }) => {
     await logInUser(page, email, password)
-    await page.goto("/")
+    await page.goto("/boards")
   })
 
   test("Create a new whiteboard and open it", async ({ page }) => {
@@ -57,7 +57,7 @@ test.describe("Whiteboard management", () => {
       page.getByText("Whiteboard created successfully"),
     ).toBeVisible()
 
-    await page.goto("/")
+    await page.goto("/boards")
     await page.getByRole("link", { name: new RegExp(name) }).click()
 
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible()
@@ -73,24 +73,44 @@ test.describe("Whiteboard management", () => {
   })
 })
 
-test.describe("Whiteboards empty state", () => {
+test.describe("Whiteboard as home", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
-  test("Shows empty state message when no whiteboards exist", async ({
-    page,
-  }) => {
+  test("Home creates a first whiteboard when none exist", async ({ page }) => {
     const email = randomEmail()
     const password = randomPassword()
     await createUser({ email, password })
     await logInUser(page, email, password)
 
-    await page.goto("/")
+    // A fresh user lands on "/" after login, which creates their first board
+    await page.waitForURL(/\/boards\/[0-9a-f-]+/)
+    await expect(page.getByText("Empty workspace")).toBeVisible()
 
+    await page.goto("/boards")
     await expect(
-      page.getByText("You don't have any whiteboards yet"),
+      page.getByRole("link", { name: "My whiteboard" }),
     ).toBeVisible()
+  })
+
+  test("Home opens the last saved whiteboard", async ({ page }) => {
+    const email = randomEmail()
+    const password = randomPassword()
+    await createUser({ email, password })
+    await logInUser(page, email, password) // creates the first board
+
+    // Create a second, newer board — it becomes the last saved one
+    const name = randomBoardName()
+    await page.goto("/boards")
+    await page.getByRole("button", { name: "New whiteboard" }).click()
+    await page.getByLabel("Name").fill(name)
+    await page.getByRole("button", { name: "Create whiteboard" }).click()
     await expect(
-      page.getByText("Create a new whiteboard to get started"),
+      page.getByText("Whiteboard created successfully"),
     ).toBeVisible()
+
+    await page.goto("/")
+    await page.waitForURL(/\/boards\/[0-9a-f-]+/)
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible()
+    await expect(page.getByText("Empty workspace")).toBeVisible()
   })
 })

@@ -8,6 +8,6 @@ setup("authenticate", async ({ page }) => {
   await page.getByTestId("email-input").fill(firstUser)
   await page.getByTestId("password-input").fill(firstUserPassword)
   await page.getByRole("button", { name: "Log In" }).click()
-  await page.waitForURL("/")
+  await page.waitForURL(/\/boards\/[0-9a-f-]+/)
   await page.context().storageState({ path: authFile })
 })

@@ -22,8 +22,10 @@ export async function logInUser(page: Page, email: string, password: string) {
   await page.getByTestId("email-input").fill(email)
   await page.getByTestId("password-input").fill(password)
   await page.getByRole("button", { name: "Log In" }).click()
-  await page.waitForURL("/")
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
+  await page.waitForURL(/\/boards\/[0-9a-f-]+/)
+  await expect(
+    page.getByRole("link", { name: "Back to whiteboards" }),
+  ).toBeVisible()
 }
 
 export async function logOutUser(page: Page) {

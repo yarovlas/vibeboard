@@ -34,7 +34,7 @@ function BoardContent() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <Button variant="outline" size="icon" asChild>
-          <Link to="/" aria-label="Back to whiteboards">
+          <Link to="/boards" aria-label="Back to whiteboards">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>

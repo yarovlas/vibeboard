@@ -16,6 +16,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
+import { Route as LayoutBoardsIndexRouteImport } from './routes/_layout/boards.index'
 import { Route as LayoutBoardsBoardIdRouteImport } from './routes/_layout/boards.$boardId'
 
 const LayoutRoute = LayoutRouteImport.update({
@@ -52,6 +53,11 @@ const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutBoardsIndexRoute = LayoutBoardsIndexRouteImport.update({
+  id: '/boards/',
+  path: '/boards/',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutBoardsBoardIdRoute = LayoutBoardsBoardIdRouteImport.update({
   id: '/boards/$boardId',
   path: '/boards/$boardId',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/settings': typeof LayoutSettingsRoute
   '/boards/$boardId': typeof LayoutBoardsBoardIdRoute
+  '/boards/': typeof LayoutBoardsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
   '/boards/$boardId': typeof LayoutBoardsBoardIdRoute
+  '/boards': typeof LayoutBoardsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
   '/_layout/boards/$boardId': typeof LayoutBoardsBoardIdRoute
+  '/_layout/boards/': typeof LayoutBoardsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/settings'
     | '/boards/$boardId'
+    | '/boards/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/'
     | '/boards/$boardId'
+    | '/boards'
   id:
     | '__root__'
     | '/_layout'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/_layout/settings'
     | '/_layout/'
     | '/_layout/boards/$boardId'
+    | '/_layout/boards/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -177,6 +189,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSettingsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/boards/': {
+      id: '/_layout/boards/'
+      path: '/boards'
+      fullPath: '/boards/'
+      preLoaderRoute: typeof LayoutBoardsIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/boards/$boardId': {
       id: '/_layout/boards/$boardId'
       path: '/boards/$boardId'
@@ -191,12 +210,14 @@ interface LayoutRouteChildren {
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
   LayoutBoardsBoardIdRoute: typeof LayoutBoardsBoardIdRoute
+  LayoutBoardsIndexRoute: typeof LayoutBoardsIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
   LayoutBoardsBoardIdRoute: LayoutBoardsBoardIdRoute,
+  LayoutBoardsIndexRoute: LayoutBoardsIndexRoute,
 }
 
 const LayoutRouteWithChildren =
