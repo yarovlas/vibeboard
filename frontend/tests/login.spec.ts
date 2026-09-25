@@ -41,7 +41,7 @@ test("Log in with valid email and password ", async ({ page }) => {
   await page.goto("/login")
 
   await fillForm(page, firstUser, firstUserPassword)
-  await page.getByRole("button", { name: "Log In" }).click()
+  await page.keyboard.press("Enter")
 
   await page.waitForURL(/\/boards\/[0-9a-f-]+/)
 
