@@ -129,6 +129,58 @@ export type NewPassword = {
 };
 
 /**
+ * PostItCreate
+ */
+export type PostItCreate = {
+    /**
+     * Title
+     */
+    title?: string;
+    /**
+     * Content
+     */
+    content?: string;
+    /**
+     * X
+     */
+    x?: number;
+    /**
+     * Y
+     */
+    y?: number;
+};
+
+/**
+ * PostItPublic
+ */
+export type PostItPublic = {
+    /**
+     * Title
+     */
+    title?: string;
+    /**
+     * Content
+     */
+    content?: string;
+    /**
+     * X
+     */
+    x?: number;
+    /**
+     * Y
+     */
+    y?: number;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Board Id
+     */
+    board_id: string;
+};
+
+/**
  * PrivateUserCreate
  */
 export type PrivateUserCreate = {
@@ -900,6 +952,68 @@ export type boardsUpdateBoardResponses = {
 };
 
 export type boardsUpdateBoardResponse = boardsUpdateBoardResponses[keyof boardsUpdateBoardResponses];
+
+export type postitsReadPostitsData = {
+    body?: never;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/postits';
+};
+
+export type postitsReadPostitsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type postitsReadPostitsError = postitsReadPostitsErrors[keyof postitsReadPostitsErrors];
+
+export type postitsReadPostitsResponses = {
+    /**
+     * Response Postits-Read Postits
+     *
+     * Successful Response
+     */
+    200: Array<PostItPublic>;
+};
+
+export type postitsReadPostitsResponse = postitsReadPostitsResponses[keyof postitsReadPostitsResponses];
+
+export type postitsCreatePostitData = {
+    body: PostItCreate;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/postits';
+};
+
+export type postitsCreatePostitErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type postitsCreatePostitError = postitsCreatePostitErrors[keyof postitsCreatePostitErrors];
+
+export type postitsCreatePostitResponses = {
+    /**
+     * Successful Response
+     */
+    200: PostItPublic;
+};
+
+export type postitsCreatePostitResponse = postitsCreatePostitResponses[keyof postitsCreatePostitResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;
