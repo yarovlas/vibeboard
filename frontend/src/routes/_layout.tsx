@@ -36,24 +36,30 @@ function Layout() {
   return (
     <BoardViewProvider>
       <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
-          <Logo />
-          <Button
-            variant="ghost"
-            size="icon"
-            asChild
-            aria-label="Whiteboards"
-            title="Whiteboards"
-          >
-            <Link to="/boards">
-              <LayoutGrid className="h-5 w-5" />
-            </Link>
-          </Button>
-          <Appearance />
-          <div className="flex flex-1 justify-center">
-            {isBoardPage && <ViewToggle />}
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 bg-background px-4">
+          <div className="flex items-center gap-1">
+            <Logo />
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              aria-label="Whiteboards"
+              title="Whiteboards"
+            >
+              <Link to="/boards">
+                <LayoutGrid className="h-5 w-5" />
+              </Link>
+            </Button>
+            <Appearance />
           </div>
-          <UserMenu />
+          {isBoardPage && (
+            <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:block">
+              <ViewToggle />
+            </div>
+          )}
+          <div className="ml-auto">
+            <UserMenu />
+          </div>
         </header>
         <main className="flex flex-1 flex-col">
           <Outlet />
