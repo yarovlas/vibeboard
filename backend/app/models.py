@@ -98,6 +98,7 @@ class Board(BoardBase, table=True):
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
     owner: User | None = Relationship(back_populates="boards")
+    postits: list[PostIt] = Relationship(back_populates="board", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
@@ -111,6 +112,34 @@ class BoardPublic(BoardBase):
 class BoardsPublic(SQLModel):
     data: list[BoardPublic]
     count: int
+
+
+# Shared properties for post-its
+class PostItBase(SQLModel):
+    title: str = Field(default="", max_length=255)
+    content: str = Field(default="", max_length=10_000)
+    x: float = 0.0
+    y: float = 0.0
+
+
+# Properties to receive on post-it creation
+class PostItCreate(PostItBase):
+    pass
+
+
+# Database model, database table inferred from class name
+class PostIt(PostItBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    board_id: uuid.UUID = Field(
+        foreign_key="board.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    board: Board | None = Relationship(back_populates="postits")
+
+
+# Properties to return via API, id is always required
+class PostItPublic(PostItBase):
+    id: uuid.UUID
+    board_id: uuid.UUID
 
 
 # Generic message
