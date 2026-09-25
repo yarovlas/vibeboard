@@ -46,7 +46,7 @@ test("Log in with valid email and password ", async ({ page }) => {
   await page.waitForURL(/\/boards\/[0-9a-f-]+/)
 
   await expect(
-    page.getByRole("link", { name: "Back to whiteboards" }),
+    page.getByRole("button", { name: "Whiteboard view" }),
   ).toBeVisible()
 })
 
@@ -78,7 +78,7 @@ test("Successful log out", async ({ page }) => {
   await page.waitForURL(/\/boards\/[0-9a-f-]+/)
 
   await expect(
-    page.getByRole("link", { name: "Back to whiteboards" }),
+    page.getByRole("button", { name: "Whiteboard view" }),
   ).toBeVisible()
 
   await page.getByTestId("user-menu").click()
@@ -95,7 +95,7 @@ test("Logged-out user cannot access protected routes", async ({ page }) => {
   await page.waitForURL(/\/boards\/[0-9a-f-]+/)
 
   await expect(
-    page.getByRole("link", { name: "Back to whiteboards" }),
+    page.getByRole("button", { name: "Whiteboard view" }),
   ).toBeVisible()
 
   await page.getByTestId("user-menu").click()

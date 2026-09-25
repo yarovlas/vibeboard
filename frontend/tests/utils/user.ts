@@ -24,7 +24,7 @@ export async function logInUser(page: Page, email: string, password: string) {
   await page.getByRole("button", { name: "Log In" }).click()
   await page.waitForURL(/\/boards\/[0-9a-f-]+/)
   await expect(
-    page.getByRole("link", { name: "Back to whiteboards" }),
+    page.getByRole("button", { name: "Whiteboard view" }),
   ).toBeVisible()
 }
 

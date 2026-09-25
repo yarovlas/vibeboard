@@ -74,7 +74,7 @@ function Home() {
 
   if (hasFailed) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+      <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-center gap-4 p-6 py-24 text-center md:p-8">
         <div className="rounded-full bg-destructive/10 p-4">
           <AlertCircle className="h-8 w-8 text-destructive" />
         </div>
@@ -91,5 +91,9 @@ function Home() {
     )
   }
 
-  return <Skeleton className="h-[65vh] w-full rounded-xl" />
+  return (
+    <div className="mx-auto w-full max-w-7xl p-6 md:p-8">
+      <Skeleton className="h-[65vh] w-full rounded-xl" />
+    </div>
+  )
 }

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import { firstUser } from "./config.ts"
 import { createUser } from "./utils/privateApi"
 import { randomBoardName, randomEmail, randomPassword } from "./utils/random"
 import { logInUser } from "./utils/user"
@@ -9,6 +10,23 @@ test("Boards page is accessible and shows correct title", async ({ page }) => {
   await expect(
     page.getByText("Create and manage your whiteboards"),
   ).toBeVisible()
+})
+
+test("Header shows whiteboards, appearance and profile buttons", async ({
+  page,
+}) => {
+  await page.goto("/boards")
+
+  await expect(page.getByRole("link", { name: "Whiteboards" })).toBeVisible()
+  await expect(page.getByTestId("theme-button")).toBeVisible()
+
+  const profileButton = page.getByRole("button", { name: "My profile" })
+  await expect(profileButton).toBeVisible()
+
+  // No name is shown until the menu is opened
+  await expect(page.getByText(firstUser, { exact: true })).not.toBeVisible()
+  await profileButton.click()
+  await expect(page.getByText(firstUser, { exact: true })).toBeVisible()
 })
 
 test("New whiteboard button is visible", async ({ page }) => {
@@ -111,6 +129,28 @@ test.describe("Whiteboard as home", () => {
     await page.goto("/")
     await page.waitForURL(/\/boards\/[0-9a-f-]+/)
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible()
+    await expect(page.getByText("Empty workspace")).toBeVisible()
+  })
+})
+
+test.describe("View switcher", () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test("Can switch between whiteboard and table view", async ({ page }) => {
+    const email = randomEmail()
+    const password = randomPassword()
+    await createUser({ email, password })
+    await logInUser(page, email, password)
+
+    await expect(page.getByText("Empty workspace")).toBeVisible()
+
+    await page.getByRole("button", { name: "Table view" }).click()
+    await expect(
+      page.getByText("Rows with your whiteboard items"),
+    ).toBeVisible()
+    await expect(page.getByText("Empty workspace")).not.toBeVisible()
+
+    await page.getByRole("button", { name: "Whiteboard view" }).click()
     await expect(page.getByText("Empty workspace")).toBeVisible()
   })
 })
