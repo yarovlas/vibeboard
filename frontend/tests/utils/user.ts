@@ -22,9 +22,9 @@ export async function logInUser(page: Page, email: string, password: string) {
   await page.getByTestId("email-input").fill(email)
   await page.getByTestId("password-input").fill(password)
   await page.getByRole("button", { name: "Log In" }).click()
-  await page.waitForURL("/")
+  await page.waitForURL(/\/boards\/[0-9a-f-]+/)
   await expect(
-    page.getByText("Welcome back, nice to see you again!"),
+    page.getByRole("button", { name: "Whiteboard view" }),
   ).toBeVisible()
 }
 

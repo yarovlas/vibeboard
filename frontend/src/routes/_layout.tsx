@@ -1,12 +1,19 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
-
-import { Footer } from "@/components/Common/Footer"
-import AppSidebar from "@/components/Sidebar/AppSidebar"
 import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+  createFileRoute,
+  Link,
+  Outlet,
+  redirect,
+  useRouterState,
+} from "@tanstack/react-router"
+import { LayoutGrid } from "lucide-react"
+
+import { Appearance } from "@/components/Common/Appearance"
+import { Footer } from "@/components/Common/Footer"
+import { Logo } from "@/components/Common/Logo"
+import { UserMenu } from "@/components/Common/UserMenu"
+import { ViewToggle } from "@/components/Common/ViewToggle"
+import { Button } from "@/components/ui/button"
+import { BoardViewProvider } from "@/hooks/board-view"
 import { isLoggedIn } from "@/hooks/useAuth"
 
 export const Route = createFileRoute("/_layout")({
@@ -21,20 +28,44 @@ export const Route = createFileRoute("/_layout")({
 })
 
 function Layout() {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const isBoardPage = /^\/boards\/[^/]+$/.test(pathname)
+
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
-          <SidebarTrigger className="-ml-1 text-muted-foreground" />
-        </header>
-        <main className="flex-1 p-6 md:p-8">
-          <div className="mx-auto max-w-7xl">
-            <Outlet />
+    <BoardViewProvider>
+      <div className="flex min-h-screen flex-col">
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 bg-background px-4">
+          <div className="flex items-center gap-1">
+            <Logo />
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              aria-label="Whiteboards"
+              title="Whiteboards"
+            >
+              <Link to="/boards">
+                <LayoutGrid className="h-5 w-5" />
+              </Link>
+            </Button>
+            <Appearance />
           </div>
+          {isBoardPage && (
+            <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:block">
+              <ViewToggle />
+            </div>
+          )}
+          <div className="ml-auto">
+            <UserMenu />
+          </div>
+        </header>
+        <main className="flex flex-1 flex-col">
+          <Outlet />
         </main>
         <Footer />
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </BoardViewProvider>
   )
 }

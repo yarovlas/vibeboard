@@ -5,6 +5,66 @@ export type ClientOptions = {
 };
 
 /**
+ * BoardCreate
+ */
+export type BoardCreate = {
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * BoardPublic
+ */
+export type BoardPublic = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Owner Id
+     */
+    owner_id: string;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * BoardUpdate
+ */
+export type BoardUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+};
+
+/**
+ * BoardsPublic
+ */
+export type BoardsPublic = {
+    /**
+     * Data
+     */
+    data: Array<BoardPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * Body_login-login_access_token
  */
 export type Body_login_login_access_token = {
@@ -42,74 +102,6 @@ export type HTTPValidationError = {
      * Detail
      */
     detail?: Array<ValidationError>;
-};
-
-/**
- * ItemCreate
- */
-export type ItemCreate = {
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Description
-     */
-    description?: string | null;
-};
-
-/**
- * ItemPublic
- */
-export type ItemPublic = {
-    /**
-     * Title
-     */
-    title: string;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Owner Id
-     */
-    owner_id: string;
-    /**
-     * Created At
-     */
-    created_at?: string | null;
-};
-
-/**
- * ItemUpdate
- */
-export type ItemUpdate = {
-    /**
-     * Title
-     */
-    title?: string | null;
-    /**
-     * Description
-     */
-    description?: string | null;
-};
-
-/**
- * ItemsPublic
- */
-export type ItemsPublic = {
-    /**
-     * Data
-     */
-    data: Array<ItemPublic>;
-    /**
-     * Count
-     */
-    count: number;
 };
 
 /**
@@ -199,10 +191,6 @@ export type UserCreate = {
      */
     is_active?: boolean;
     /**
-     * Is Superuser
-     */
-    is_superuser?: boolean;
-    /**
      * Full Name
      */
     full_name?: string | null;
@@ -224,10 +212,6 @@ export type UserPublic = {
      * Is Active
      */
     is_active?: boolean;
-    /**
-     * Is Superuser
-     */
-    is_superuser?: boolean;
     /**
      * Full Name
      */
@@ -272,10 +256,6 @@ export type UserUpdate = {
      * Is Active
      */
     is_active?: boolean | null;
-    /**
-     * Is Superuser
-     */
-    is_superuser?: boolean | null;
     /**
      * Full Name
      */
@@ -772,7 +752,7 @@ export type utilsHealthCheckResponses = {
 
 export type utilsHealthCheckResponse = utilsHealthCheckResponses[keyof utilsHealthCheckResponses];
 
-export type itemsReadItemsData = {
+export type boardsReadBoardsData = {
     body?: never;
     path?: never;
     query?: {
@@ -785,53 +765,53 @@ export type itemsReadItemsData = {
          */
         limit?: number;
     };
-    url: '/api/v1/items/';
+    url: '/api/v1/boards/';
 };
 
-export type itemsReadItemsErrors = {
+export type boardsReadBoardsErrors = {
     /**
      * Validation Error
      */
     422: HTTPValidationError;
 };
 
-export type itemsReadItemsError = itemsReadItemsErrors[keyof itemsReadItemsErrors];
+export type boardsReadBoardsError = boardsReadBoardsErrors[keyof boardsReadBoardsErrors];
 
-export type itemsReadItemsResponses = {
+export type boardsReadBoardsResponses = {
     /**
      * Successful Response
      */
-    200: ItemsPublic;
+    200: BoardsPublic;
 };
 
-export type itemsReadItemsResponse = itemsReadItemsResponses[keyof itemsReadItemsResponses];
+export type boardsReadBoardsResponse = boardsReadBoardsResponses[keyof boardsReadBoardsResponses];
 
-export type itemsCreateItemData = {
-    body: ItemCreate;
+export type boardsCreateBoardData = {
+    body: BoardCreate;
     path?: never;
     query?: never;
-    url: '/api/v1/items/';
+    url: '/api/v1/boards/';
 };
 
-export type itemsCreateItemErrors = {
+export type boardsCreateBoardErrors = {
     /**
      * Validation Error
      */
     422: HTTPValidationError;
 };
 
-export type itemsCreateItemError = itemsCreateItemErrors[keyof itemsCreateItemErrors];
+export type boardsCreateBoardError = boardsCreateBoardErrors[keyof boardsCreateBoardErrors];
 
-export type itemsCreateItemResponses = {
+export type boardsCreateBoardResponses = {
     /**
      * Successful Response
      */
-    200: ItemPublic;
+    200: BoardPublic;
 };
 
-export type itemsCreateItemResponse = itemsCreateItemResponses[keyof itemsCreateItemResponses];
+export type boardsCreateBoardResponse = boardsCreateBoardResponses[keyof boardsCreateBoardResponses];
 
-export type itemsDeleteItemData = {
+export type boardsDeleteBoardData = {
     body?: never;
     path: {
         /**
@@ -840,28 +820,28 @@ export type itemsDeleteItemData = {
         id: string;
     };
     query?: never;
-    url: '/api/v1/items/{id}';
+    url: '/api/v1/boards/{id}';
 };
 
-export type itemsDeleteItemErrors = {
+export type boardsDeleteBoardErrors = {
     /**
      * Validation Error
      */
     422: HTTPValidationError;
 };
 
-export type itemsDeleteItemError = itemsDeleteItemErrors[keyof itemsDeleteItemErrors];
+export type boardsDeleteBoardError = boardsDeleteBoardErrors[keyof boardsDeleteBoardErrors];
 
-export type itemsDeleteItemResponses = {
+export type boardsDeleteBoardResponses = {
     /**
      * Successful Response
      */
     200: Message;
 };
 
-export type itemsDeleteItemResponse = itemsDeleteItemResponses[keyof itemsDeleteItemResponses];
+export type boardsDeleteBoardResponse = boardsDeleteBoardResponses[keyof boardsDeleteBoardResponses];
 
-export type itemsReadItemData = {
+export type boardsReadBoardData = {
     body?: never;
     path: {
         /**
@@ -870,29 +850,29 @@ export type itemsReadItemData = {
         id: string;
     };
     query?: never;
-    url: '/api/v1/items/{id}';
+    url: '/api/v1/boards/{id}';
 };
 
-export type itemsReadItemErrors = {
+export type boardsReadBoardErrors = {
     /**
      * Validation Error
      */
     422: HTTPValidationError;
 };
 
-export type itemsReadItemError = itemsReadItemErrors[keyof itemsReadItemErrors];
+export type boardsReadBoardError = boardsReadBoardErrors[keyof boardsReadBoardErrors];
 
-export type itemsReadItemResponses = {
+export type boardsReadBoardResponses = {
     /**
      * Successful Response
      */
-    200: ItemPublic;
+    200: BoardPublic;
 };
 
-export type itemsReadItemResponse = itemsReadItemResponses[keyof itemsReadItemResponses];
+export type boardsReadBoardResponse = boardsReadBoardResponses[keyof boardsReadBoardResponses];
 
-export type itemsUpdateItemData = {
-    body: ItemUpdate;
+export type boardsUpdateBoardData = {
+    body: BoardUpdate;
     path: {
         /**
          * Id
@@ -900,26 +880,26 @@ export type itemsUpdateItemData = {
         id: string;
     };
     query?: never;
-    url: '/api/v1/items/{id}';
+    url: '/api/v1/boards/{id}';
 };
 
-export type itemsUpdateItemErrors = {
+export type boardsUpdateBoardErrors = {
     /**
      * Validation Error
      */
     422: HTTPValidationError;
 };
 
-export type itemsUpdateItemError = itemsUpdateItemErrors[keyof itemsUpdateItemErrors];
+export type boardsUpdateBoardError = boardsUpdateBoardErrors[keyof boardsUpdateBoardErrors];
 
-export type itemsUpdateItemResponses = {
+export type boardsUpdateBoardResponses = {
     /**
      * Successful Response
      */
-    200: ItemPublic;
+    200: BoardPublic;
 };
 
-export type itemsUpdateItemResponse = itemsUpdateItemResponses[keyof itemsUpdateItemResponses];
+export type boardsUpdateBoardResponse = boardsUpdateBoardResponses[keyof boardsUpdateBoardResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;

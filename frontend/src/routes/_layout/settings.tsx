@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_layout/settings")({
   head: () => ({
     meta: [
       {
-        title: "Settings - FastAPI Template",
+        title: "Settings - Vibeboard",
       },
     ],
   }),
@@ -25,16 +25,13 @@ export const Route = createFileRoute("/_layout/settings")({
 
 function UserSettings() {
   const { user: currentUser } = useAuth()
-  const finalTabs = currentUser?.is_superuser
-    ? tabsConfig.slice(0, 3)
-    : tabsConfig
 
   if (!currentUser) {
     return null
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6 md:p-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">User Settings</h1>
         <p className="text-muted-foreground">
@@ -44,13 +41,13 @@ function UserSettings() {
 
       <Tabs defaultValue="my-profile">
         <TabsList>
-          {finalTabs.map((tab) => (
+          {tabsConfig.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.title}
             </TabsTrigger>
           ))}
         </TabsList>
-        {finalTabs.map((tab) => (
+        {tabsConfig.map((tab) => (
           <TabsContent key={tab.value} value={tab.value}>
             <tab.component />
           </TabsContent>

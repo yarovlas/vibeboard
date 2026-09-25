@@ -15,8 +15,8 @@ from tests.utils.utils import random_email, random_lower_string
 
 def test_get_access_token(client: TestClient) -> None:
     login_data = {
-        "username": settings.FIRST_SUPERUSER,
-        "password": settings.FIRST_SUPERUSER_PASSWORD,
+        "username": settings.FIRST_USER,
+        "password": settings.FIRST_USER_PASSWORD,
     }
     r = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)
     tokens = r.json()
@@ -27,7 +27,7 @@ def test_get_access_token(client: TestClient) -> None:
 
 def test_get_access_token_incorrect_password(client: TestClient) -> None:
     login_data = {
-        "username": settings.FIRST_SUPERUSER,
+        "username": settings.FIRST_USER,
         "password": "incorrect",
     }
     r = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)
@@ -35,11 +35,11 @@ def test_get_access_token_incorrect_password(client: TestClient) -> None:
 
 
 def test_use_access_token(
-    client: TestClient, superuser_token_headers: dict[str, str]
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
     r = client.post(
         f"{settings.API_V1_STR}/login/test-token",
-        headers=superuser_token_headers,
+        headers=first_user_token_headers,
     )
     result = r.json()
     assert r.status_code == 200
@@ -89,7 +89,6 @@ def test_reset_password(client: TestClient, db: Session) -> None:
         full_name="Test User",
         password=password,
         is_active=True,
-        is_superuser=False,
     )
     user = create_user(session=db, user_create=user_create)
     token = generate_password_reset_token(email=email)
@@ -111,12 +110,12 @@ def test_reset_password(client: TestClient, db: Session) -> None:
 
 
 def test_reset_password_invalid_token(
-    client: TestClient, superuser_token_headers: dict[str, str]
+    client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
     data = {"new_password": "changethis", "token": "invalid"}
     r = client.post(
         f"{settings.API_V1_STR}/reset-password/",
-        headers=superuser_token_headers,
+        headers=first_user_token_headers,
         json=data,
     )
     response = r.json()

@@ -15,5 +15,5 @@ function getEnvVar(name: string): string {
   return value
 }
 
-export const firstSuperuser = getEnvVar("FIRST_SUPERUSER")
-export const firstSuperuserPassword = getEnvVar("FIRST_SUPERUSER_PASSWORD")
+export const firstUser = getEnvVar("FIRST_USER")
+export const firstUserPassword = getEnvVar("FIRST_USER_PASSWORD")
