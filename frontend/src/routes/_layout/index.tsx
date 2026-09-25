@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { BoardsService } from "@/client"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { handleInvalidAccessToken } from "@/lib/auth"
 
 export const Route = createFileRoute("/_layout/")({
   component: Home,
@@ -59,7 +60,8 @@ function Home() {
           to: "/boards/$boardId",
           params: { boardId: created.data.id },
         })
-      } catch {
+      } catch (error) {
+        if (handleInvalidAccessToken(error)) return
         if (!cancelled) {
           setHasFailed(true)
         }

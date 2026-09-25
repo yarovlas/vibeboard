@@ -8,12 +8,13 @@ import {
   type UserRegister,
   UsersService,
 } from "@/client"
+import {
+  clearAccessToken,
+  handleInvalidAccessToken,
+  isLoggedIn,
+} from "@/lib/auth"
 import { handleError } from "@/utils"
 import useCustomToast from "./useCustomToast"
-
-const isLoggedIn = () => {
-  return localStorage.getItem("access_token") !== null
-}
 
 const useAuth = () => {
   const navigate = useNavigate()
@@ -32,7 +33,10 @@ const useAuth = () => {
     onSuccess: () => {
       navigate({ to: "/login" })
     },
-    onError: handleError.bind(showErrorToast),
+    onError: (error) => {
+      handleInvalidAccessToken(error)
+      handleError.call(showErrorToast, error)
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
     },
@@ -50,11 +54,14 @@ const useAuth = () => {
     onSuccess: () => {
       navigate({ to: "/" })
     },
-    onError: handleError.bind(showErrorToast),
+    onError: (error) => {
+      handleInvalidAccessToken(error)
+      handleError.call(showErrorToast, error)
+    },
   })
 
   const logout = () => {
-    localStorage.removeItem("access_token")
+    clearAccessToken()
     navigate({ to: "/login" })
   }
 
