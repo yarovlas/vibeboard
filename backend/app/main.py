@@ -24,9 +24,16 @@ app = FastAPI(
     generate_unique_id_function=custom_generate_unique_id,
 )
 
+allow_origin_regex = (
+    r"https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?"
+    if settings.FASTAPI_ENV == "development"
+    else None
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.FRONTEND_HOST],
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
