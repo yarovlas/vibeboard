@@ -37,7 +37,10 @@ function getPostitsQueryOptions(boardId: string) {
 }
 
 function createTemporaryId() {
-  return globalThis.crypto.randomUUID()
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID()
+  }
+  return `temporary-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 function clampPosition(
