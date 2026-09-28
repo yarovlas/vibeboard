@@ -71,6 +71,11 @@ function Login() {
     <AuthLayout>
       <Form {...form}>
         <form
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return
+            event.preventDefault()
+            void form.handleSubmit(onSubmit)()
+          }}
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-6"
         >

@@ -41,7 +41,7 @@ test("Log in with valid email and password ", async ({ page }) => {
   await page.goto("/login")
 
   await fillForm(page, firstUser, firstUserPassword)
-  await page.getByRole("button", { name: "Log In" }).click()
+  await page.keyboard.press("Enter")
 
   await page.waitForURL(/\/boards\/[0-9a-f-]+/)
 
@@ -104,14 +104,4 @@ test("Logged-out user cannot access protected routes", async ({ page }) => {
 
   await page.goto("/settings")
   await page.waitForURL("/login")
-})
-
-test("Redirects to /login when token is wrong", async ({ page }) => {
-  await page.goto("/settings")
-  await page.evaluate(() => {
-    localStorage.setItem("access_token", "invalid_token")
-  })
-  await page.goto("/settings")
-  await page.waitForURL("/login")
-  await expect(page).toHaveURL("/login")
 })

@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { PenLine, Table2 } from "lucide-react"
+import { Table2 } from "lucide-react"
 import { Suspense } from "react"
 
 import { BoardsService } from "@/client"
+import { WhiteboardCanvas } from "@/components/Boards/WhiteboardCanvas"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useBoardView } from "@/hooks/board-view"
 
@@ -26,20 +27,8 @@ export const Route = createFileRoute("/_layout/boards/$boardId")({
   }),
 })
 
-function WhiteboardView() {
-  return (
-    <div className="flex min-h-[60vh] flex-1 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20">
-      <div className="text-center">
-        <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-muted">
-          <PenLine className="size-5 text-muted-foreground" />
-        </div>
-        <p className="font-medium">Empty workspace</p>
-        <p className="text-sm text-muted-foreground">
-          Post-its and drawings will appear here in the next sprints.
-        </p>
-      </div>
-    </div>
-  )
+function WhiteboardView({ boardId }: { boardId: string }) {
+  return <WhiteboardCanvas boardId={boardId} />
 }
 
 function TableView() {
@@ -73,7 +62,7 @@ function BoardContent() {
           {board.updated_at ? new Date(board.updated_at).toLocaleString() : ""}
         </p>
       </div>
-      {view === "table" ? <TableView /> : <WhiteboardView />}
+      {view === "table" ? <TableView /> : <WhiteboardView boardId={boardId} />}
     </div>
   )
 }
