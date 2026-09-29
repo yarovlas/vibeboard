@@ -36,7 +36,7 @@ function Layout() {
   return (
     <BoardViewProvider>
       <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 bg-background px-4">
+        <header className="sticky top-0 z-20 relative flex h-16 shrink-0 items-center gap-2 bg-background px-4">
           <div className="flex items-center gap-1">
             <Logo />
             <Button

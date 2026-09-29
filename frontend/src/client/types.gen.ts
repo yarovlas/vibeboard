@@ -181,6 +181,20 @@ export type PostItPublic = {
 };
 
 /**
+ * PostItUpdate
+ */
+export type PostItUpdate = {
+    /**
+     * Title
+     */
+    title?: string | null;
+    /**
+     * Content
+     */
+    content?: string | null;
+};
+
+/**
  * PrivateUserCreate
  */
 export type PrivateUserCreate = {
@@ -1014,6 +1028,74 @@ export type postitsCreatePostitResponses = {
 };
 
 export type postitsCreatePostitResponse = postitsCreatePostitResponses[keyof postitsCreatePostitResponses];
+
+export type postitsDeletePostitData = {
+    body?: never;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/postits/{id}';
+};
+
+export type postitsDeletePostitErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type postitsDeletePostitError = postitsDeletePostitErrors[keyof postitsDeletePostitErrors];
+
+export type postitsDeletePostitResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type postitsDeletePostitResponse = postitsDeletePostitResponses[keyof postitsDeletePostitResponses];
+
+export type postitsUpdatePostitData = {
+    body: PostItUpdate;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/postits/{id}';
+};
+
+export type postitsUpdatePostitErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type postitsUpdatePostitError = postitsUpdatePostitErrors[keyof postitsUpdatePostitErrors];
+
+export type postitsUpdatePostitResponses = {
+    /**
+     * Successful Response
+     */
+    200: PostItPublic;
+};
+
+export type postitsUpdatePostitResponse = postitsUpdatePostitResponses[keyof postitsUpdatePostitResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;

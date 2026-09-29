@@ -17,6 +17,14 @@ import {
   PostItNode,
 } from "@/components/Boards/PostItNode"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import useCustomToast from "@/hooks/useCustomToast"
 import { handleError } from "@/utils"
 
@@ -38,7 +46,7 @@ function getPostitsQueryOptions(boardId: string) {
 
 function createTemporaryId() {
   if (typeof globalThis.crypto?.randomUUID === "function") {
-    return globalThis.crypto.randomUUID()
+    return `temporary-${globalThis.crypto.randomUUID()}`
   }
   return `temporary-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
@@ -72,6 +80,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const { data: postits } = useSuspenseQuery(getPostitsQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
+    null,
+  )
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current
@@ -131,6 +142,51 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: (draft: BoardPostIt) =>
+      PostitsService.updatePostit({
+        body: { title: draft.title, content: draft.content },
+        path: { board_id: boardId, id: draft.id },
+      }),
+    onError: (error, draft) => {
+      handledIds.current.delete(draft.id)
+      setEditingId((current) => (current === draft.id ? null : current))
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: (response, draft) => {
+      const savedPostIt = normalizePostIt(response.data)
+      queryClient.setQueryData<BoardPostIt[]>(
+        getPostitsQueryKey(boardId),
+        (current) =>
+          current?.map((postit) =>
+            postit.id === draft.id ? savedPostIt : postit,
+          ),
+      )
+      void queryClient.invalidateQueries({
+        queryKey: ["boards", "detail", boardId],
+      })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (postitId: string) =>
+      PostitsService.deletePostit({
+        path: { board_id: boardId, id: postitId },
+      }),
+    onError: (error) => {
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: (_response, postitId) => {
+      queryClient.setQueryData<BoardPostIt[]>(
+        getPostitsQueryKey(boardId),
+        (current) => current?.filter((postit) => postit.id !== postitId),
+      )
+      void queryClient.invalidateQueries({
+        queryKey: ["boards", "detail", boardId],
+      })
+    },
+  })
+
   const editingPostIt = postits.find((postit) => postit.id === editingId)
 
   const removeDraft = (postitId: string) => {
@@ -144,7 +200,12 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (handledIds.current.has(draft.id)) return
     handledIds.current.add(draft.id)
     setEditingId((current) => (current === draft.id ? null : current))
-    mutation.mutate(draft)
+    const isTemporary = draft.id.startsWith("temporary-")
+    if (isTemporary) {
+      mutation.mutate(draft)
+    } else {
+      updateMutation.mutate(draft)
+    }
   }
 
   const cancelDraft = (draft: BoardPostIt) => {
@@ -226,13 +287,20 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             onDblClick={handleStageDoubleClick}
           >
             <Layer>
-              {postits.map((postit) => (
-                <PostItNode
-                  key={postit.id}
-                  postit={postit}
-                  isEditing={postit.id === editingId}
-                />
-              ))}
+              {postits.map((postit) =>
+                postit.id === editingId ? null : (
+                  <PostItNode
+                    key={postit.id}
+                    postit={postit}
+                    isEditing={false}
+                    onEdit={(p) => {
+                      handledIds.current.delete(p.id)
+                      setEditingId(p.id)
+                    }}
+                    onDelete={(p) => setDeleteCandidate(p)}
+                  />
+                ),
+              )}
             </Layer>
           </Stage>
         )}
@@ -290,6 +358,42 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             </li>
           ))}
         </ul>
+
+        <Dialog
+          open={deleteCandidate !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleteCandidate(null)
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Post-it verwijderen</DialogTitle>
+              <DialogDescription>
+                Weet je zeker dat je deze post-it wilt verwijderen? Deze actie
+                kan niet ongedaan worden gemaakt.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteCandidate(null)}
+              >
+                Annuleren
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (deleteCandidate) {
+                    deleteMutation.mutate(deleteCandidate.id)
+                    setDeleteCandidate(null)
+                  }
+                }}
+              >
+                Verwijderen
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </section>
     </div>
   )

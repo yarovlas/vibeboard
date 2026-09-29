@@ -11,7 +11,8 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
       id-token: write
     timeout-minutes: 5
     steps:

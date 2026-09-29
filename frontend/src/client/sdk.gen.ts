@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { boardsCreateBoardData, boardsCreateBoardErrors, boardsCreateBoardResponses, boardsDeleteBoardData, boardsDeleteBoardErrors, boardsDeleteBoardResponses, boardsReadBoardData, boardsReadBoardErrors, boardsReadBoardResponses, boardsReadBoardsData, boardsReadBoardsErrors, boardsReadBoardsResponses, boardsUpdateBoardData, boardsUpdateBoardErrors, boardsUpdateBoardResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, postitsCreatePostitData, postitsCreatePostitErrors, postitsCreatePostitResponses, postitsReadPostitsData, postitsReadPostitsErrors, postitsReadPostitsResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
+import type { boardsCreateBoardData, boardsCreateBoardErrors, boardsCreateBoardResponses, boardsDeleteBoardData, boardsDeleteBoardErrors, boardsDeleteBoardResponses, boardsReadBoardData, boardsReadBoardErrors, boardsReadBoardResponses, boardsReadBoardsData, boardsReadBoardsErrors, boardsReadBoardsResponses, boardsUpdateBoardData, boardsUpdateBoardErrors, boardsUpdateBoardResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, postitsCreatePostitData, postitsCreatePostitErrors, postitsCreatePostitResponses, postitsDeletePostitData, postitsDeletePostitErrors, postitsDeletePostitResponses, postitsReadPostitsData, postitsReadPostitsErrors, postitsReadPostitsResponses, postitsUpdatePostitData, postitsUpdatePostitErrors, postitsUpdatePostitResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -378,7 +378,7 @@ export class PostitsService {
             ...options
         });
     }
-
+    
     /**
      * Create Postit
      *
@@ -389,6 +389,38 @@ export class PostitsService {
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/boards/{board_id}/postits',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Delete Postit
+     *
+     * Delete a post-it from a board.
+     */
+    public static deletePostit<ThrowOnError extends boolean = true>(options: Options<postitsDeletePostitData, ThrowOnError>) {
+        return (options.client ?? client).delete<postitsDeletePostitResponses, postitsDeletePostitErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{board_id}/postits/{id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Update Postit
+     *
+     * Update a post-it on a board.
+     */
+    public static updatePostit<ThrowOnError extends boolean = true>(options: Options<postitsUpdatePostitData, ThrowOnError>) {
+        return (options.client ?? client).patch<postitsUpdatePostitResponses, postitsUpdatePostitErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{board_id}/postits/{id}',
             ...options,
             headers: {
                 'Content-Type': 'application/json',
