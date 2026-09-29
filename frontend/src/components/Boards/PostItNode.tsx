@@ -1,4 +1,5 @@
 import { Group, Rect, Text } from "react-konva"
+import type { KonvaEventObject } from "konva/lib/Node"
 
 import type { PostItPublic } from "@/client"
 
@@ -31,23 +32,31 @@ export function normalizePostIt(postit: PostItPublic): BoardPostIt {
 interface PostItNodeProps {
   postit: BoardPostIt
   isEditing: boolean
+  onEdit: (postit: BoardPostIt) => void
+  onDelete: (postit: BoardPostIt) => void
 }
 
-export function PostItNode({ postit, isEditing }: PostItNodeProps) {
+export function PostItNode({
+  postit,
+  isEditing,
+  onEdit,
+  onDelete,
+}: PostItNodeProps) {
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
     : postit.content
+
+  const handleDoubleClick = (event: KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true
+    onEdit(postit)
+  }
 
   return (
     <Group
       x={postit.x}
       y={postit.y}
       name={`postit-${postit.id}`}
-      onDblClick={(event) => {
-        // PBI-02 does not edit existing notes. Keep the event from bubbling
-        // to the stage, which uses double-clicks to create a new note.
-        event.cancelBubble = true
-      }}
+      onDblClick={handleDoubleClick}
     >
       <Rect
         width={POSTIT_WIDTH}
@@ -74,6 +83,35 @@ export function PostItNode({ postit, isEditing }: PostItNodeProps) {
           ellipsis
           listening={false}
         />
+      )}
+      {!isEditing && (
+        <Group
+          x={POSTIT_WIDTH - 36}
+          y={8}
+          onClick={(event) => {
+            event.cancelBubble = true
+            onDelete(postit)
+          }}
+          onTap={(event) => {
+            event.cancelBubble = true
+            onDelete(postit)
+          }}
+        >
+          <Rect
+            width={28}
+            height={28}
+            fill="transparent"
+            cornerRadius={6}
+          />
+          <Text
+            x={6}
+            y={4}
+            text="×"
+            fontSize={20}
+            fill={POSTIT_MUTED_TEXT}
+            listening={false}
+          />
+        </Group>
       )}
     </Group>
   )
