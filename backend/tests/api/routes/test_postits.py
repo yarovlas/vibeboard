@@ -141,3 +141,132 @@ def test_read_postits_not_enough_permissions(
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Not enough permissions"
+
+
+def test_update_postit(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"title": "Old title", "content": "Old content", "x": 10, "y": 20},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+        json={"title": "New title", "content": "New content"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["title"] == "New title"
+    assert body["content"] == "New content"
+    assert body["x"] == 10
+    assert body["y"] == 20
+
+
+def test_update_postit_not_found(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{uuid.uuid4()}",
+        headers=first_user_token_headers,
+        json={"title": "New title"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Post-it not found"
+
+
+def test_update_postit_not_enough_permissions(
+    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
+) -> None:
+    board = create_random_board(db)
+    from app.models import PostIt
+
+    postit = PostIt(
+        board_id=board.id, title="Private", content="Secret", x=0, y=0
+    )
+    db.add(postit)
+    db.commit()
+    db.refresh(postit)
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board.id}/postits/{postit.id}",
+        headers=normal_user_token_headers,
+        json={"title": "Hacked"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Not enough permissions"
+
+
+def test_delete_postit(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "To be deleted", "x": 30, "y": 40},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+
+    response = client.delete(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Post-it deleted successfully"
+
+    # Verify it's gone
+    get_response = client.get(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+    )
+    assert get_response.status_code == 200
+    assert len(get_response.json()) == 0
+
+
+def test_delete_postit_not_found(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+
+    response = client.delete(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{uuid.uuid4()}",
+        headers=first_user_token_headers,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Post-it not found"
+
+
+def test_delete_postit_not_enough_permissions(
+    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
+) -> None:
+    board = create_random_board(db)
+    from app.models import PostIt
+
+    postit = PostIt(
+        board_id=board.id, title="Private", content="Secret", x=0, y=0
+    )
+    db.add(postit)
+    db.commit()
+    db.refresh(postit)
+
+    response = client.delete(
+        f"{settings.API_V1_STR}/boards/{board.id}/postits/{postit.id}",
+        headers=normal_user_token_headers,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Not enough permissions"
