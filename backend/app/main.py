@@ -3,9 +3,8 @@ from pathlib import Path
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.routing import APIRoute
-from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.core.config import settings

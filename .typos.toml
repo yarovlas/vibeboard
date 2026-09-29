@@ -1,0 +1,24 @@
+[files]
+extend-exclude = [
+  "img/",
+  "uv.lock",
+  "bun.lock",
+  "backend/coverage/",
+  "backend/htmlcov/",
+  "backend/app/frontend/",
+  "frontend/dist/",
+  "frontend/public/assets/images/",
+]
+
+[default]
+extend-ignore-re = [
+  "@[a-zA-Z0-9](?:-?[a-zA-Z0-9])*",
+  "Bump certifi ",
+]
+
+[default.extend-identifiers]
+alls = "alls"
+
+[default.extend-words]
+actie = "actie"
+tekst = "tekst"

@@ -1,5 +1,5 @@
-import { Group, Rect, Text } from "react-konva"
 import type { KonvaEventObject } from "konva/lib/Node"
+import { Group, Rect, Text } from "react-konva"
 
 import type { PostItPublic } from "@/client"
 
@@ -97,12 +97,7 @@ export function PostItNode({
             onDelete(postit)
           }}
         >
-          <Rect
-            width={28}
-            height={28}
-            fill="transparent"
-            cornerRadius={6}
-          />
+          <Rect width={28} height={28} fill="transparent" cornerRadius={6} />
           <Text
             x={6}
             y={4}

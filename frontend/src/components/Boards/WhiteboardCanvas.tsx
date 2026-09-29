@@ -10,14 +10,6 @@ import { Layer, Stage } from "react-konva"
 
 import { PostitsService } from "@/client"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   type BoardPostIt,
   normalizePostIt,
   POSTIT_HEIGHT,
@@ -25,6 +17,14 @@ import {
   PostItNode,
 } from "@/components/Boards/PostItNode"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import useCustomToast from "@/hooks/useCustomToast"
 import { handleError } from "@/utils"
 
@@ -80,7 +80,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const { data: postits } = useSuspenseQuery(getPostitsQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(null)
+  const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
+    null,
+  )
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current

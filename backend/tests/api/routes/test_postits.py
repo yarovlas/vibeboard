@@ -190,9 +190,7 @@ def test_update_postit_not_enough_permissions(
     board = create_random_board(db)
     from app.models import PostIt
 
-    postit = PostIt(
-        board_id=board.id, title="Private", content="Secret", x=0, y=0
-    )
+    postit = PostIt(board_id=board.id, title="Private", content="Secret", x=0, y=0)
     db.add(postit)
     db.commit()
     db.refresh(postit)
@@ -256,9 +254,7 @@ def test_delete_postit_not_enough_permissions(
     board = create_random_board(db)
     from app.models import PostIt
 
-    postit = PostIt(
-        board_id=board.id, title="Private", content="Secret", x=0, y=0
-    )
+    postit = PostIt(board_id=board.id, title="Private", content="Secret", x=0, y=0)
     db.add(postit)
     db.commit()
     db.refresh(postit)
