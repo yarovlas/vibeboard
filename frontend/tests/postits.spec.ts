@@ -106,9 +106,11 @@ test.describe("Post-it creation", () => {
     if (!box) throw new Error("Whiteboard stage has no bounding box")
     await page.mouse.dblclick(box.x + 120, box.y + 120)
 
-    await expect(
-      page.getByRole("textbox", { name: "Post-it text" }),
-    ).toHaveCount(0)
+    // Double-clicking an existing post-it opens it for editing,
+    // it must not create a second (empty) draft.
+    const editEditor = page.getByRole("textbox", { name: "Post-it text" })
+    await expect(editEditor).toBeVisible()
+    await expect(editEditor).toHaveValue("Only one note")
     const postitList = page.getByRole("list", {
       name: "Post-its on this whiteboard",
     })
