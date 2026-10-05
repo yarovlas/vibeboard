@@ -236,3 +236,87 @@ test.describe("Post-it verwijderen", () => {
     await expect(postitList).toContainText("Blijft bestaan")
   })
 })
+
+test.describe("Post-it verslepen", () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test("sleept een post-it naar een nieuwe positie en behoudt deze na herladen", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+
+    // Create a post-it (default position x=40, y=40)
+    await page.getByRole("button", { name: "Add post-it" }).click()
+    const editor = page.getByRole("textbox", { name: "Post-it text" })
+    await editor.fill("Versleepbare notitie")
+    await expect(editor).toHaveValue("Versleepbare notitie")
+    const createResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await editor.blur()
+    const createResponse = await createResponsePromise
+    expect(createResponse.status()).toBe(200)
+    await expect(editor).toHaveCount(0)
+
+    const stage = page.getByTestId("whiteboard-stage")
+    const box = await stage.boundingBox()
+    if (!box) throw new Error("Whiteboard stage has no bounding box")
+    // Center of the post-it (POSTIT_WIDTH=220, POSTIT_HEIGHT=180 at x=40, y=40)
+    const startX = box.x + 40 + 110
+    const startY = box.y + 40 + 90
+    const deltaX = 150
+    const deltaY = 100
+
+    const patchBodies: Array<Record<string, unknown>> = []
+    page.on("request", (request) => {
+      if (
+        request.method() === "PATCH" &&
+        request.url().includes(`/api/v1/boards/${boardId}/postits`)
+      ) {
+        patchBodies.push(request.postDataJSON() ?? {})
+      }
+    })
+    const patchResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 10 })
+    await page.mouse.up()
+
+    const patchResponse = await patchResponsePromise
+    expect(patchResponse.status()).toBe(200)
+    const savedBody = patchResponse.request().postDataJSON()
+    expect(savedBody.x).toBeGreaterThan(40)
+    expect(savedBody.y).toBeGreaterThan(40)
+
+    // Exactly one PATCH for the whole drag (no API-call per mousemove)
+    await page.waitForTimeout(500)
+    expect(patchBodies).toHaveLength(1)
+
+    // Reload: position must persist
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    const getResponse = await getResponsePromise
+    expect(getResponse.status()).toBe(200)
+    const postits = await getResponse.json()
+    expect(postits).toHaveLength(1)
+    expect(postits[0].x).toBeCloseTo(savedBody.x, 1)
+    expect(postits[0].y).toBeCloseTo(savedBody.y, 1)
+
+    const postitList = page.getByRole("list", {
+      name: "Post-its on this whiteboard",
+    })
+    await expect(postitList).toContainText("Versleepbare notitie")
+  })
+})
