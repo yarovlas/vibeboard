@@ -25,7 +25,11 @@ def read_strokes(
 ) -> list[StrokePublic]:
     """Retrieve all strokes for a board."""
     get_owned_board(session=session, current_user=current_user, board_id=board_id)
-    statement = select(Stroke).where(Stroke.board_id == board_id)
+    statement = (
+        select(Stroke)
+        .where(Stroke.board_id == board_id)
+        .order_by(Stroke.created_at, Stroke.id)
+    )
     return [
         StrokePublic.model_validate(stroke) for stroke in session.exec(statement).all()
     ]
