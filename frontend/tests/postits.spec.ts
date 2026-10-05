@@ -319,4 +319,74 @@ test.describe("Post-it verslepen", () => {
     })
     await expect(postitList).toContainText("Versleepbare notitie")
   })
+
+  test("kan een post-it niet buiten het canvas slepen", async ({ page }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+
+    // Create a post-it (default position x=40, y=40)
+    await page.getByRole("button", { name: "Add post-it" }).click()
+    const editor = page.getByRole("textbox", { name: "Post-it text" })
+    await editor.fill("Binnen de grenzen")
+    await expect(editor).toHaveValue("Binnen de grenzen")
+    const createResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await editor.blur()
+    const createResponse = await createResponsePromise
+    expect(createResponse.status()).toBe(200)
+    await expect(editor).toHaveCount(0)
+
+    const stage = page.getByTestId("whiteboard-stage")
+    const box = await stage.boundingBox()
+    if (!box) throw new Error("Whiteboard stage has no bounding box")
+    // Center of the post-it (POSTIT_WIDTH=220, POSTIT_HEIGHT=180 at x=40, y=40)
+    const startX = box.x + 40 + 110
+    const startY = box.y + 40 + 90
+
+    const patchResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+
+    // Drag far beyond the bottom-right corner of the canvas
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width + 500, box.y + box.height + 500, {
+      steps: 10,
+    })
+    await page.mouse.up()
+
+    const patchResponse = await patchResponsePromise
+    expect(patchResponse.status()).toBe(200)
+    const savedBody = patchResponse.request().postDataJSON()
+    // POSTIT_WIDTH=220, POSTIT_HEIGHT=180: note must stay fully inside
+    // (2px tolerance for container borders)
+    expect(savedBody.x).toBeGreaterThanOrEqual(0)
+    expect(savedBody.y).toBeGreaterThanOrEqual(0)
+    expect(savedBody.x).toBeLessThanOrEqual(box.width - 220 + 2)
+    expect(savedBody.y).toBeLessThanOrEqual(box.height - 180 + 2)
+
+    // Reload: clamped position must persist, content untouched
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    const getResponse = await getResponsePromise
+    expect(getResponse.status()).toBe(200)
+    const postits = await getResponse.json()
+    expect(postits).toHaveLength(1)
+    expect(postits[0].x).toBeCloseTo(savedBody.x, 1)
+    expect(postits[0].y).toBeCloseTo(savedBody.y, 1)
+
+    const postitList = page.getByRole("list", {
+      name: "Post-its on this whiteboard",
+    })
+    await expect(postitList).toContainText("Binnen de grenzen")
+  })
 })
