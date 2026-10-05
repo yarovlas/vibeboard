@@ -82,6 +82,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
+  const [penColor, setPenColor] = useState("#111827")
+  const [penWidth, setPenWidth] = useState(4)
   const [lines, setLines] = useState<BoardStroke[]>([])
   const [currentPoints, setCurrentPoints] = useState<number[] | null>(null)
   const isPointerDown = useRef(false)
@@ -327,8 +329,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         id: createTemporaryId(),
         board_id: boardId,
         points: currentPoints,
-        color: "#111827",
-        width: 4,
+        color: penColor,
+        width: penWidth,
         tool: "pen",
       }
       setLines((current) => [...current, line])
@@ -349,6 +351,37 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             : "Double-click the canvas to add a post-it."}
         </p>
         <div className="flex items-center gap-2">
+          {isDrawing && (
+            <>
+              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                Pen color
+                <input
+                  type="color"
+                  aria-label="Pen color"
+                  value={penColor}
+                  onChange={(event) => setPenColor(event.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border bg-background p-0.5"
+                  data-testid="pen-color"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                Pen width
+                <select
+                  aria-label="Pen width"
+                  value={penWidth}
+                  onChange={(event) => setPenWidth(Number(event.target.value))}
+                  className="h-8 cursor-pointer rounded-md border bg-background px-1.5 text-sm"
+                  data-testid="pen-width"
+                >
+                  {[2, 4, 8, 12].map((width) => (
+                    <option key={width} value={width}>
+                      {width}px
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
           <Button
             type="button"
             variant={isDrawing ? "secondary" : "outline"}
@@ -419,8 +452,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     id: "current-stroke",
                     board_id: boardId,
                     points: currentPoints,
-                    color: "#111827",
-                    width: 4,
+                    color: penColor,
+                    width: penWidth,
                     tool: "pen",
                   }}
                 />
