@@ -324,6 +324,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     }}
                     onDelete={(p) => setDeleteCandidate(p)}
                     onDragEnd={(p, position) => movePostIt(p, position)}
+                    dragBoundFunc={(position) =>
+                      clampPosition(position, canvasSize)
+                    }
                   />
                 ),
               )}

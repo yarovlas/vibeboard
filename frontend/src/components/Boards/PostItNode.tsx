@@ -35,6 +35,10 @@ interface PostItNodeProps {
   onEdit: (postit: BoardPostIt) => void
   onDelete: (postit: BoardPostIt) => void
   onDragEnd?: (postit: BoardPostIt, position: { x: number; y: number }) => void
+  dragBoundFunc?: (position: { x: number; y: number }) => {
+    x: number
+    y: number
+  }
 }
 
 export function PostItNode({
@@ -43,6 +47,7 @@ export function PostItNode({
   onEdit,
   onDelete,
   onDragEnd,
+  dragBoundFunc,
 }: PostItNodeProps) {
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
@@ -64,6 +69,7 @@ export function PostItNode({
       y={postit.y}
       name={`postit-${postit.id}`}
       draggable={!isEditing}
+      dragBoundFunc={dragBoundFunc}
       onDblClick={handleDoubleClick}
       onDragEnd={handleDragEnd}
     >
