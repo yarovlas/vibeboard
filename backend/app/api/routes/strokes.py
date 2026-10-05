@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.api.deps import CurrentUser, SessionDep
 from app.api.routes.postits import get_owned_board
@@ -28,7 +28,7 @@ def read_strokes(
     statement = (
         select(Stroke)
         .where(Stroke.board_id == board_id)
-        .order_by(Stroke.created_at, Stroke.id)
+        .order_by(col(Stroke.created_at), col(Stroke.id))
     )
     return [
         StrokePublic.model_validate(stroke) for stroke in session.exec(statement).all()
