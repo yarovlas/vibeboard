@@ -7,7 +7,11 @@ import {
 import { createRouter, RouterProvider } from "@tanstack/react-router"
 import { StrictMode } from "react"
 import ReactDOM from "react-dom/client"
-import { handleInvalidAccessToken } from "@/lib/auth"
+import {
+  clearAccessToken,
+  handleInvalidAccessToken,
+  isAccessTokenExpired,
+} from "@/lib/auth"
 import { client } from "./client/client.gen"
 import { ThemeProvider } from "./components/theme-provider"
 import { Toaster } from "./components/ui/sonner"
@@ -26,6 +30,17 @@ client.instance.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+// Proactively clear expired tokens so idle users are logged out
+setInterval(() => {
+  const token = localStorage.getItem("access_token")
+  if (token && isAccessTokenExpired(token)) {
+    clearAccessToken()
+    if (window.location.pathname !== "/login") {
+      window.location.assign("/login")
+    }
+  }
+}, 30_000)
 
 const handleApiError = (error: Error) => {
   handleInvalidAccessToken(error)

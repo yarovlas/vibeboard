@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Board, PostIt, PostItCreate, PostItPublic
+from app.models import Board, Message, PostIt, PostItCreate, PostItPublic, PostItUpdate
 
 router = APIRouter(prefix="/boards", tags=["postits"])
 
@@ -51,3 +51,49 @@ def create_postit(
     session.commit()
     session.refresh(postit)
     return PostItPublic.model_validate(postit)
+
+
+@router.patch("/{board_id}/postits/{id}", response_model=PostItPublic)
+def update_postit(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    board_id: uuid.UUID,
+    id: uuid.UUID,
+    postit_in: PostItUpdate,
+) -> PostItPublic:
+    """Update a post-it on a board."""
+    get_owned_board(session=session, current_user=current_user, board_id=board_id)
+    postit = session.get(PostIt, id)
+    if not postit:
+        raise HTTPException(status_code=404, detail="Post-it not found")
+    if postit.board_id != board_id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    update_dict = postit_in.model_dump(exclude_unset=True)
+    postit.sqlmodel_update(update_dict)
+    board = session.get(Board, board_id)
+    if board:
+        board.updated_at = datetime.now(UTC)
+    session.add(postit)
+    session.commit()
+    session.refresh(postit)
+    return PostItPublic.model_validate(postit)
+
+
+@router.delete("/{board_id}/postits/{id}")
+def delete_postit(
+    session: SessionDep,
+    current_user: CurrentUser,
+    board_id: uuid.UUID,
+    id: uuid.UUID,
+) -> Message:
+    """Delete a post-it from a board."""
+    get_owned_board(session=session, current_user=current_user, board_id=board_id)
+    postit = session.get(PostIt, id)
+    if not postit:
+        raise HTTPException(status_code=404, detail="Post-it not found")
+    if postit.board_id != board_id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    session.delete(postit)
+    session.commit()
+    return Message(message="Post-it deleted successfully")

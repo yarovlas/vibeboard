@@ -127,6 +127,12 @@ class PostItCreate(PostItBase):
     pass
 
 
+# Properties to receive on post-it update
+class PostItUpdate(SQLModel):
+    title: str | None = Field(default=None, max_length=255)
+    content: str | None = Field(default=None, max_length=10_000)
+
+
 # Database model, database table inferred from class name
 class PostIt(PostItBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
