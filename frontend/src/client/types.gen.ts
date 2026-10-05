@@ -192,6 +192,14 @@ export type PostItUpdate = {
      * Content
      */
     content?: string | null;
+    /**
+     * X
+     */
+    x?: number | null;
+    /**
+     * Y
+     */
+    y?: number | null;
 };
 
 /**
