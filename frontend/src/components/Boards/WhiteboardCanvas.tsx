@@ -8,7 +8,7 @@ import { Pencil, Plus } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
 
-import { PostitsService } from "@/client"
+import { PostitsService, StrokesService } from "@/client"
 import {
   type BoardPostIt,
   normalizePostIt,
@@ -16,7 +16,11 @@ import {
   POSTIT_WIDTH,
   PostItNode,
 } from "@/components/Boards/PostItNode"
-import { type BoardStroke, StrokeLine } from "@/components/Boards/StrokeLine"
+import {
+  type BoardStroke,
+  normalizeStroke,
+  StrokeLine,
+} from "@/components/Boards/StrokeLine"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -42,6 +46,22 @@ function getPostitsQueryOptions(boardId: string) {
       return response.data.map(normalizePostIt)
     },
     queryKey: getPostitsQueryKey(boardId),
+  }
+}
+
+function getStrokesQueryKey(boardId: string) {
+  return ["boards", boardId, "strokes"] as const
+}
+
+function getStrokesQueryOptions(boardId: string) {
+  return {
+    queryFn: async () => {
+      const response = await StrokesService.readStrokes({
+        path: { board_id: boardId },
+      })
+      return response.data.map(normalizeStroke)
+    },
+    queryKey: getStrokesQueryKey(boardId),
   }
 }
 
@@ -84,9 +104,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const [isDrawing, setIsDrawing] = useState(false)
   const [penColor, setPenColor] = useState("#111827")
   const [penWidth, setPenWidth] = useState(4)
-  const [lines, setLines] = useState<BoardStroke[]>([])
   const [currentPoints, setCurrentPoints] = useState<number[] | null>(null)
   const isPointerDown = useRef(false)
+  const { data: strokes } = useSuspenseQuery(getStrokesQueryOptions(boardId))
   const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
     null,
   )
@@ -195,6 +215,39 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       queryClient.setQueryData<BoardPostIt[]>(
         getPostitsQueryKey(boardId),
         (current) => current?.filter((postit) => postit.id !== postitId),
+      )
+      void queryClient.invalidateQueries({
+        queryKey: ["boards", "detail", boardId],
+      })
+    },
+  })
+
+  const strokeMutation = useMutation({
+    mutationFn: (line: BoardStroke) =>
+      StrokesService.createStroke({
+        body: {
+          points: line.points,
+          color: line.color,
+          width: line.width,
+          tool: line.tool,
+        },
+        path: { board_id: boardId },
+      }),
+    onError: (error, line) => {
+      queryClient.setQueryData<BoardStroke[]>(
+        getStrokesQueryKey(boardId),
+        (current) => current?.filter((stroke) => stroke.id !== line.id),
+      )
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: (response, line) => {
+      const savedStroke = normalizeStroke(response.data)
+      queryClient.setQueryData<BoardStroke[]>(
+        getStrokesQueryKey(boardId),
+        (current) =>
+          current?.map((stroke) =>
+            stroke.id === line.id ? savedStroke : stroke,
+          ),
       )
       void queryClient.invalidateQueries({
         queryKey: ["boards", "detail", boardId],
@@ -333,7 +386,11 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         width: penWidth,
         tool: "pen",
       }
-      setLines((current) => [...current, line])
+      queryClient.setQueryData<BoardStroke[]>(
+        getStrokesQueryKey(boardId),
+        (current) => [...(current ?? []), line],
+      )
+      strokeMutation.mutate(line)
     }
     setCurrentPoints(null)
   }
@@ -443,8 +500,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
               )}
             </Layer>
             <Layer listening={false}>
-              {lines.map((line) => (
-                <StrokeLine key={line.id} stroke={line} />
+              {strokes.map((stroke) => (
+                <StrokeLine key={stroke.id} stroke={stroke} />
               ))}
               {currentPoints && currentPoints.length >= 2 && (
                 <StrokeLine
