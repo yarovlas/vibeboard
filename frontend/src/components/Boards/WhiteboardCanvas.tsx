@@ -145,12 +145,20 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const updateMutation = useMutation({
     mutationFn: (draft: BoardPostIt) =>
       PostitsService.updatePostit({
-        body: { title: draft.title, content: draft.content },
+        body: {
+          title: draft.title,
+          content: draft.content,
+          x: draft.x,
+          y: draft.y,
+        },
         path: { board_id: boardId, id: draft.id },
       }),
     onError: (error, draft) => {
       handledIds.current.delete(draft.id)
       setEditingId((current) => (current === draft.id ? null : current))
+      void queryClient.invalidateQueries({
+        queryKey: getPostitsQueryKey(boardId),
+      })
       handleError.call(showErrorToast, error)
     },
     onSuccess: (response, draft) => {
@@ -223,6 +231,23 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           postit.id === postitId ? { ...postit, content } : postit,
         ),
     )
+  }
+
+  const movePostIt = (
+    postit: BoardPostIt,
+    position: { x: number; y: number },
+  ) => {
+    if (postit.id.startsWith("temporary-")) return
+    if (postit.id === editingId) return
+    const clamped = clampPosition(position, canvasSize)
+    if (clamped.x === postit.x && clamped.y === postit.y) return
+    const moved: BoardPostIt = { ...postit, x: clamped.x, y: clamped.y }
+    queryClient.setQueryData<BoardPostIt[]>(
+      getPostitsQueryKey(boardId),
+      (current) =>
+        current?.map((item) => (item.id === moved.id ? moved : item)),
+    )
+    updateMutation.mutate(moved)
   }
 
   const addDraft = (position: { x: number; y: number }) => {
@@ -298,6 +323,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                       setEditingId(p.id)
                     }}
                     onDelete={(p) => setDeleteCandidate(p)}
+                    onDragEnd={(p, position) => movePostIt(p, position)}
                   />
                 ),
               )}
