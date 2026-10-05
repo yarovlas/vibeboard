@@ -212,6 +212,7 @@ test.describe("Post-it verwijderen", () => {
     await page.getByRole("button", { name: "Add post-it" }).click()
     const editor = page.getByRole("textbox", { name: "Post-it text" })
     await editor.fill("Blijft bestaan")
+    await expect(editor).toHaveValue("Blijft bestaan")
     await editor.blur()
     await expect(editor).toHaveCount(0)
 
