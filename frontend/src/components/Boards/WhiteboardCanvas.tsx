@@ -4,7 +4,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { KonvaEventObject } from "konva/lib/Node"
-import { Plus } from "lucide-react"
+import { Pencil, Plus } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
 
@@ -16,6 +16,7 @@ import {
   POSTIT_WIDTH,
   PostItNode,
 } from "@/components/Boards/PostItNode"
+import { type BoardStroke, StrokeLine } from "@/components/Boards/StrokeLine"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -80,6 +81,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const { data: postits } = useSuspenseQuery(getPostitsQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [lines, setLines] = useState<BoardStroke[]>([])
+  const [currentPoints, setCurrentPoints] = useState<number[] | null>(null)
+  const isPointerDown = useRef(false)
   const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
     null,
   )
@@ -278,6 +283,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }
 
   const handleStageDoubleClick = (event: KonvaEventObject<MouseEvent>) => {
+    if (isDrawing) return
     const stage = event.target.getStage()
     if (!stage || event.target !== stage) return
 
@@ -290,6 +296,46 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     })
   }
 
+  const getPointerPosition = (
+    event: KonvaEventObject<MouseEvent> | KonvaEventObject<TouchEvent>,
+  ) => event.target.getStage()?.getRelativePointerPosition() ?? null
+
+  const handlePointerDown = (
+    event: KonvaEventObject<MouseEvent> | KonvaEventObject<TouchEvent>,
+  ) => {
+    if (!isDrawing) return
+    const pointer = getPointerPosition(event)
+    if (!pointer) return
+    isPointerDown.current = true
+    setCurrentPoints([pointer.x, pointer.y])
+  }
+
+  const handlePointerMove = (
+    event: KonvaEventObject<MouseEvent> | KonvaEventObject<TouchEvent>,
+  ) => {
+    if (!isDrawing || !isPointerDown.current) return
+    const pointer = getPointerPosition(event)
+    if (!pointer) return
+    setCurrentPoints((current) => [...(current ?? []), pointer.x, pointer.y])
+  }
+
+  const finishStroke = () => {
+    if (!isDrawing || !isPointerDown.current) return
+    isPointerDown.current = false
+    if (currentPoints && currentPoints.length >= 4) {
+      const line: BoardStroke = {
+        id: createTemporaryId(),
+        board_id: boardId,
+        points: currentPoints,
+        color: "#111827",
+        width: 4,
+        tool: "pen",
+      }
+      setLines((current) => [...current, line])
+    }
+    setCurrentPoints(null)
+  }
+
   return (
     <div className="flex min-h-[60vh] flex-1 flex-col gap-3">
       <div
@@ -298,12 +344,30 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         aria-label="Whiteboard tools"
       >
         <p className="text-sm text-muted-foreground">
-          Double-click the canvas to add a post-it.
+          {isDrawing
+            ? "Draw on the canvas. Switch drawing off to move post-its again."
+            : "Double-click the canvas to add a post-it."}
         </p>
-        <Button type="button" onClick={() => addDraft({ x: 40, y: 40 })}>
-          <Plus />
-          Add post-it
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant={isDrawing ? "secondary" : "outline"}
+            onClick={() => setIsDrawing((current) => !current)}
+            data-testid="drawing-toggle"
+            aria-pressed={isDrawing}
+          >
+            <Pencil />
+            {isDrawing ? "Drawing..." : "Draw"}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => addDraft({ x: 40, y: 40 })}
+            disabled={isDrawing}
+          >
+            <Plus />
+            Add post-it
+          </Button>
+        </div>
       </div>
 
       <section
@@ -317,14 +381,21 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             width={canvasSize.width}
             height={canvasSize.height}
             onDblClick={handleStageDoubleClick}
+            onMouseDown={handlePointerDown}
+            onMouseMove={handlePointerMove}
+            onMouseUp={finishStroke}
+            onTouchStart={handlePointerDown}
+            onTouchMove={handlePointerMove}
+            onTouchEnd={finishStroke}
           >
-            <Layer>
+            <Layer listening={!isDrawing}>
               {postits.map((postit) =>
                 postit.id === editingId ? null : (
                   <PostItNode
                     key={postit.id}
                     postit={postit}
                     isEditing={false}
+                    isDrawing={isDrawing}
                     onEdit={(p) => {
                       handledIds.current.delete(p.id)
                       setEditingId(p.id)
@@ -336,6 +407,23 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     }
                   />
                 ),
+              )}
+            </Layer>
+            <Layer listening={false}>
+              {lines.map((line) => (
+                <StrokeLine key={line.id} stroke={line} />
+              ))}
+              {currentPoints && currentPoints.length >= 2 && (
+                <StrokeLine
+                  stroke={{
+                    id: "current-stroke",
+                    board_id: boardId,
+                    points: currentPoints,
+                    color: "#111827",
+                    width: 4,
+                    tool: "pen",
+                  }}
+                />
               )}
             </Layer>
           </Stage>
