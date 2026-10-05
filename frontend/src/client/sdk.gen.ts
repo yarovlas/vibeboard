@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { boardsCreateBoardData, boardsCreateBoardErrors, boardsCreateBoardResponses, boardsDeleteBoardData, boardsDeleteBoardErrors, boardsDeleteBoardResponses, boardsReadBoardData, boardsReadBoardErrors, boardsReadBoardResponses, boardsReadBoardsData, boardsReadBoardsErrors, boardsReadBoardsResponses, boardsUpdateBoardData, boardsUpdateBoardErrors, boardsUpdateBoardResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, postitsCreatePostitData, postitsCreatePostitErrors, postitsCreatePostitResponses, postitsDeletePostitData, postitsDeletePostitErrors, postitsDeletePostitResponses, postitsReadPostitsData, postitsReadPostitsErrors, postitsReadPostitsResponses, postitsUpdatePostitData, postitsUpdatePostitErrors, postitsUpdatePostitResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
+import type { boardsCreateBoardData, boardsCreateBoardErrors, boardsCreateBoardResponses, boardsDeleteBoardData, boardsDeleteBoardErrors, boardsDeleteBoardResponses, boardsReadBoardData, boardsReadBoardErrors, boardsReadBoardResponses, boardsReadBoardsData, boardsReadBoardsErrors, boardsReadBoardsResponses, boardsUpdateBoardData, boardsUpdateBoardErrors, boardsUpdateBoardResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, postitsCreatePostitData, postitsCreatePostitErrors, postitsCreatePostitResponses, postitsDeletePostitData, postitsDeletePostitErrors, postitsDeletePostitResponses, postitsReadPostitsData, postitsReadPostitsErrors, postitsReadPostitsResponses, postitsUpdatePostitData, postitsUpdatePostitErrors, postitsUpdatePostitResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, strokesCreateStrokeData, strokesCreateStrokeErrors, strokesCreateStrokeResponses, strokesCreateStrokesBulkData, strokesCreateStrokesBulkErrors, strokesCreateStrokesBulkResponses, strokesDeleteStrokeData, strokesDeleteStrokeErrors, strokesDeleteStrokeResponses, strokesReadStrokesData, strokesReadStrokesErrors, strokesReadStrokesResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -426,6 +426,72 @@ export class PostitsService {
                 'Content-Type': 'application/json',
                 ...options.headers
             }
+        });
+    }
+}
+
+export class StrokesService {
+    /**
+     * Read Strokes
+     *
+     * Retrieve all strokes for a board.
+     */
+    public static readStrokes<ThrowOnError extends boolean = true>(options: Options<strokesReadStrokesData, ThrowOnError>) {
+        return (options.client ?? client).get<strokesReadStrokesResponses, strokesReadStrokesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{board_id}/strokes',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Stroke
+     *
+     * Create a stroke on a board.
+     */
+    public static createStroke<ThrowOnError extends boolean = true>(options: Options<strokesCreateStrokeData, ThrowOnError>) {
+        return (options.client ?? client).post<strokesCreateStrokeResponses, strokesCreateStrokeErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{board_id}/strokes',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Create Strokes Bulk
+     *
+     * Create multiple strokes on a board in one request.
+     */
+    public static createStrokesBulk<ThrowOnError extends boolean = true>(options: Options<strokesCreateStrokesBulkData, ThrowOnError>) {
+        return (options.client ?? client).post<strokesCreateStrokesBulkResponses, strokesCreateStrokesBulkErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{board_id}/strokes/bulk',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Delete Stroke
+     *
+     * Delete a stroke from a board.
+     */
+    public static deleteStroke<ThrowOnError extends boolean = true>(options: Options<strokesDeleteStrokeData, ThrowOnError>) {
+        return (options.client ?? client).delete<strokesDeleteStrokeResponses, strokesDeleteStrokeErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/boards/{board_id}/strokes/{id}',
+            ...options
         });
     }
 }

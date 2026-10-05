@@ -32,6 +32,7 @@ export function normalizePostIt(postit: PostItPublic): BoardPostIt {
 interface PostItNodeProps {
   postit: BoardPostIt
   isEditing: boolean
+  isDrawing?: boolean
   onEdit: (postit: BoardPostIt) => void
   onDelete: (postit: BoardPostIt) => void
   onDragEnd?: (postit: BoardPostIt, position: { x: number; y: number }) => void
@@ -44,6 +45,7 @@ interface PostItNodeProps {
 export function PostItNode({
   postit,
   isEditing,
+  isDrawing = false,
   onEdit,
   onDelete,
   onDragEnd,
@@ -68,7 +70,7 @@ export function PostItNode({
       x={postit.x}
       y={postit.y}
       name={`postit-${postit.id}`}
-      draggable={!isEditing}
+      draggable={!isEditing && !isDrawing}
       dragBoundFunc={dragBoundFunc}
       onDblClick={handleDoubleClick}
       onDragEnd={handleDragEnd}

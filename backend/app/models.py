@@ -2,7 +2,8 @@ import uuid
 from datetime import UTC, datetime
 
 from pydantic import EmailStr
-from sqlalchemy import DateTime
+from sqlalchemy import Column, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -99,6 +100,7 @@ class Board(BoardBase, table=True):
     )
     owner: User | None = Relationship(back_populates="boards")
     postits: list[PostIt] = Relationship(back_populates="board", cascade_delete=True)
+    strokes: list[Stroke] = Relationship(back_populates="board", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
@@ -146,6 +148,39 @@ class PostIt(PostItBase, table=True):
 
 # Properties to return via API, id is always required
 class PostItPublic(PostItBase):
+    id: uuid.UUID
+    board_id: uuid.UUID
+
+
+# Shared properties for strokes (freehand drawings)
+class StrokeBase(SQLModel):
+    points: list[float] = Field(min_length=4)
+    color: str = Field(default="#111827", max_length=32)
+    width: float = Field(default=4.0, gt=0, le=50)
+    tool: str = Field(default="pen", max_length=32)
+
+
+# Properties to receive on stroke creation
+class StrokeCreate(StrokeBase):
+    pass
+
+
+# Database model, database table inferred from class name
+class Stroke(StrokeBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    board_id: uuid.UUID = Field(
+        foreign_key="board.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    board: Board | None = Relationship(back_populates="strokes")
+    points: list[float] = Field(min_length=4, sa_column=Column(JSONB, nullable=False))
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+# Properties to return via API, id is always required
+class StrokePublic(StrokeBase):
     id: uuid.UUID
     board_id: uuid.UUID
 

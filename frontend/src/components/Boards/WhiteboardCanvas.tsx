@@ -4,11 +4,11 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { KonvaEventObject } from "konva/lib/Node"
-import { Plus } from "lucide-react"
+import { Pencil, Plus, Redo2, Undo2 } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
 
-import { PostitsService } from "@/client"
+import { PostitsService, StrokesService } from "@/client"
 import {
   type BoardPostIt,
   normalizePostIt,
@@ -16,6 +16,11 @@ import {
   POSTIT_WIDTH,
   PostItNode,
 } from "@/components/Boards/PostItNode"
+import {
+  type BoardStroke,
+  normalizeStroke,
+  StrokeLine,
+} from "@/components/Boards/StrokeLine"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -41,6 +46,22 @@ function getPostitsQueryOptions(boardId: string) {
       return response.data.map(normalizePostIt)
     },
     queryKey: getPostitsQueryKey(boardId),
+  }
+}
+
+function getStrokesQueryKey(boardId: string) {
+  return ["boards", boardId, "strokes"] as const
+}
+
+function getStrokesQueryOptions(boardId: string) {
+  return {
+    queryFn: async () => {
+      const response = await StrokesService.readStrokes({
+        path: { board_id: boardId },
+      })
+      return response.data.map(normalizeStroke)
+    },
+    queryKey: getStrokesQueryKey(boardId),
   }
 }
 
@@ -80,6 +101,14 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const { data: postits } = useSuspenseQuery(getPostitsQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [penColor, setPenColor] = useState("#111827")
+  const [penWidth, setPenWidth] = useState(4)
+  const [currentPoints, setCurrentPoints] = useState<number[] | null>(null)
+  const [redoStack, setRedoStack] = useState<BoardStroke[]>([])
+  const isPointerDown = useRef(false)
+  const doomedStrokeIds = useRef(new Set<string>())
+  const { data: strokes } = useSuspenseQuery(getStrokesQueryOptions(boardId))
   const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
     null,
   )
@@ -106,6 +135,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   useEffect(() => {
     if (editingId) editorRef.current?.focus()
   }, [editingId])
+
+  useEffect(() => {
+    setRedoStack([])
+  }, [])
 
   const mutation = useMutation({
     mutationFn: (draft: BoardPostIt) =>
@@ -188,6 +221,66 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       queryClient.setQueryData<BoardPostIt[]>(
         getPostitsQueryKey(boardId),
         (current) => current?.filter((postit) => postit.id !== postitId),
+      )
+      void queryClient.invalidateQueries({
+        queryKey: ["boards", "detail", boardId],
+      })
+    },
+  })
+
+  const deleteStrokeMutation = useMutation({
+    mutationFn: (strokeId: string) =>
+      StrokesService.deleteStroke({
+        path: { board_id: boardId, id: strokeId },
+      }),
+    onError: (error) => {
+      setRedoStack([])
+      void queryClient.invalidateQueries({
+        queryKey: getStrokesQueryKey(boardId),
+      })
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["boards", "detail", boardId],
+      })
+    },
+  })
+
+  const strokeMutation = useMutation({
+    mutationFn: (line: BoardStroke) =>
+      StrokesService.createStroke({
+        body: {
+          points: line.points,
+          color: line.color,
+          width: line.width,
+          tool: line.tool,
+        },
+        path: { board_id: boardId },
+      }),
+    onError: (error, line) => {
+      doomedStrokeIds.current.delete(line.id)
+      queryClient.setQueryData<BoardStroke[]>(
+        getStrokesQueryKey(boardId),
+        (current) => current?.filter((stroke) => stroke.id !== line.id),
+      )
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: (response, line) => {
+      if (doomedStrokeIds.current.has(line.id)) {
+        // Undone while the save was still in flight: remove the saved
+        // stroke again instead of inserting it into the canvas.
+        doomedStrokeIds.current.delete(line.id)
+        deleteStrokeMutation.mutate(response.data.id)
+        return
+      }
+      const savedStroke = normalizeStroke(response.data)
+      queryClient.setQueryData<BoardStroke[]>(
+        getStrokesQueryKey(boardId),
+        (current) =>
+          current?.map((stroke) =>
+            stroke.id === line.id ? savedStroke : stroke,
+          ),
       )
       void queryClient.invalidateQueries({
         queryKey: ["boards", "detail", boardId],
@@ -278,6 +371,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }
 
   const handleStageDoubleClick = (event: KonvaEventObject<MouseEvent>) => {
+    if (isDrawing) return
     const stage = event.target.getStage()
     if (!stage || event.target !== stage) return
 
@@ -290,6 +384,106 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     })
   }
 
+  const getPointerPosition = (
+    event: KonvaEventObject<MouseEvent> | KonvaEventObject<TouchEvent>,
+  ) => event.target.getStage()?.getRelativePointerPosition() ?? null
+
+  const handlePointerDown = (
+    event: KonvaEventObject<MouseEvent> | KonvaEventObject<TouchEvent>,
+  ) => {
+    if (!isDrawing) return
+    const pointer = getPointerPosition(event)
+    if (!pointer) return
+    isPointerDown.current = true
+    setCurrentPoints([pointer.x, pointer.y])
+  }
+
+  const handlePointerMove = (
+    event: KonvaEventObject<MouseEvent> | KonvaEventObject<TouchEvent>,
+  ) => {
+    if (!isDrawing || !isPointerDown.current) return
+    const pointer = getPointerPosition(event)
+    if (!pointer) return
+    setCurrentPoints((current) => [...(current ?? []), pointer.x, pointer.y])
+  }
+
+  const finishStroke = () => {
+    if (!isDrawing || !isPointerDown.current) return
+    isPointerDown.current = false
+    if (currentPoints && currentPoints.length >= 4) {
+      const line: BoardStroke = {
+        id: createTemporaryId(),
+        board_id: boardId,
+        points: currentPoints,
+        color: penColor,
+        width: penWidth,
+        tool: "pen",
+      }
+      queryClient.setQueryData<BoardStroke[]>(
+        getStrokesQueryKey(boardId),
+        (current) => [...(current ?? []), line],
+      )
+      setRedoStack([])
+      strokeMutation.mutate(line)
+    }
+    setCurrentPoints(null)
+  }
+
+  const undoStroke = () => {
+    const last = strokes[strokes.length - 1]
+    if (!last) return
+    queryClient.setQueryData<BoardStroke[]>(
+      getStrokesQueryKey(boardId),
+      (current) => current?.filter((stroke) => stroke.id !== last.id),
+    )
+    setRedoStack((current) => [...current, last])
+    if (last.id.startsWith("temporary-")) {
+      doomedStrokeIds.current.add(last.id)
+    } else {
+      deleteStrokeMutation.mutate(last.id)
+    }
+  }
+
+  const redoStroke = () => {
+    const last = redoStack[redoStack.length - 1]
+    if (!last) return
+    // Re-save as a new stroke so this works for deleted strokes too,
+    // regardless of whether the original save had finished.
+    const line: BoardStroke = { ...last, id: createTemporaryId() }
+    setRedoStack((current) => current.slice(0, -1))
+    queryClient.setQueryData<BoardStroke[]>(
+      getStrokesQueryKey(boardId),
+      (current) => [...(current ?? []), line],
+    )
+    strokeMutation.mutate(line)
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      const key = event.key.toLowerCase()
+      if (key === "z" && !event.shiftKey) {
+        event.preventDefault()
+        undoStroke()
+      } else if (key === "y" || (key === "z" && event.shiftKey)) {
+        event.preventDefault()
+        redoStroke()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  })
+
   return (
     <div className="flex min-h-[60vh] flex-1 flex-col gap-3">
       <div
@@ -298,12 +492,85 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         aria-label="Whiteboard tools"
       >
         <p className="text-sm text-muted-foreground">
-          Double-click the canvas to add a post-it.
+          {isDrawing
+            ? "Draw on the canvas. Switch drawing off to move post-its again."
+            : "Double-click the canvas to add a post-it."}
         </p>
-        <Button type="button" onClick={() => addDraft({ x: 40, y: 40 })}>
-          <Plus />
-          Add post-it
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={undoStroke}
+            disabled={strokes.length === 0}
+            data-testid="undo-stroke"
+            aria-label="Undo stroke"
+            title="Undo stroke (Ctrl+Z)"
+          >
+            <Undo2 />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={redoStroke}
+            disabled={redoStack.length === 0}
+            data-testid="redo-stroke"
+            aria-label="Redo stroke"
+            title="Redo stroke (Ctrl+Y)"
+          >
+            <Redo2 />
+          </Button>
+          {isDrawing && (
+            <>
+              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                Pen color
+                <input
+                  type="color"
+                  aria-label="Pen color"
+                  value={penColor}
+                  onChange={(event) => setPenColor(event.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border bg-background p-0.5"
+                  data-testid="pen-color"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                Pen width
+                <select
+                  aria-label="Pen width"
+                  value={penWidth}
+                  onChange={(event) => setPenWidth(Number(event.target.value))}
+                  className="h-8 cursor-pointer rounded-md border bg-background px-1.5 text-sm"
+                  data-testid="pen-width"
+                >
+                  {[2, 4, 8, 12].map((width) => (
+                    <option key={width} value={width}>
+                      {width}px
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+          <Button
+            type="button"
+            variant={isDrawing ? "secondary" : "outline"}
+            onClick={() => setIsDrawing((current) => !current)}
+            data-testid="drawing-toggle"
+            aria-pressed={isDrawing}
+          >
+            <Pencil />
+            {isDrawing ? "Drawing..." : "Draw"}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => addDraft({ x: 40, y: 40 })}
+            disabled={isDrawing}
+          >
+            <Plus />
+            Add post-it
+          </Button>
+        </div>
       </div>
 
       <section
@@ -317,14 +584,21 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             width={canvasSize.width}
             height={canvasSize.height}
             onDblClick={handleStageDoubleClick}
+            onMouseDown={handlePointerDown}
+            onMouseMove={handlePointerMove}
+            onMouseUp={finishStroke}
+            onTouchStart={handlePointerDown}
+            onTouchMove={handlePointerMove}
+            onTouchEnd={finishStroke}
           >
-            <Layer>
+            <Layer listening={!isDrawing}>
               {postits.map((postit) =>
                 postit.id === editingId ? null : (
                   <PostItNode
                     key={postit.id}
                     postit={postit}
                     isEditing={false}
+                    isDrawing={isDrawing}
                     onEdit={(p) => {
                       handledIds.current.delete(p.id)
                       setEditingId(p.id)
@@ -336,6 +610,23 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     }
                   />
                 ),
+              )}
+            </Layer>
+            <Layer listening={false}>
+              {strokes.map((stroke) => (
+                <StrokeLine key={stroke.id} stroke={stroke} />
+              ))}
+              {currentPoints && currentPoints.length >= 2 && (
+                <StrokeLine
+                  stroke={{
+                    id: "current-stroke",
+                    board_id: boardId,
+                    points: currentPoints,
+                    color: penColor,
+                    width: penWidth,
+                    tool: "pen",
+                  }}
+                />
               )}
             </Layer>
           </Stage>

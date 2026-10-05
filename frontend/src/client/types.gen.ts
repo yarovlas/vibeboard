@@ -225,6 +225,58 @@ export type PrivateUserCreate = {
 };
 
 /**
+ * StrokeCreate
+ */
+export type StrokeCreate = {
+    /**
+     * Points
+     */
+    points: Array<number>;
+    /**
+     * Color
+     */
+    color?: string;
+    /**
+     * Width
+     */
+    width?: number;
+    /**
+     * Tool
+     */
+    tool?: string;
+};
+
+/**
+ * StrokePublic
+ */
+export type StrokePublic = {
+    /**
+     * Points
+     */
+    points: Array<number>;
+    /**
+     * Color
+     */
+    color?: string;
+    /**
+     * Width
+     */
+    width?: number;
+    /**
+     * Tool
+     */
+    tool?: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Board Id
+     */
+    board_id: string;
+};
+
+/**
  * Token
  */
 export type Token = {
@@ -1104,6 +1156,137 @@ export type postitsUpdatePostitResponses = {
 };
 
 export type postitsUpdatePostitResponse = postitsUpdatePostitResponses[keyof postitsUpdatePostitResponses];
+
+export type strokesReadStrokesData = {
+    body?: never;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/strokes';
+};
+
+export type strokesReadStrokesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type strokesReadStrokesError = strokesReadStrokesErrors[keyof strokesReadStrokesErrors];
+
+export type strokesReadStrokesResponses = {
+    /**
+     * Response Strokes-Read Strokes
+     *
+     * Successful Response
+     */
+    200: Array<StrokePublic>;
+};
+
+export type strokesReadStrokesResponse = strokesReadStrokesResponses[keyof strokesReadStrokesResponses];
+
+export type strokesCreateStrokeData = {
+    body: StrokeCreate;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/strokes';
+};
+
+export type strokesCreateStrokeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type strokesCreateStrokeError = strokesCreateStrokeErrors[keyof strokesCreateStrokeErrors];
+
+export type strokesCreateStrokeResponses = {
+    /**
+     * Successful Response
+     */
+    200: StrokePublic;
+};
+
+export type strokesCreateStrokeResponse = strokesCreateStrokeResponses[keyof strokesCreateStrokeResponses];
+
+export type strokesCreateStrokesBulkData = {
+    /**
+     * Strokes In
+     */
+    body: Array<StrokeCreate>;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/strokes/bulk';
+};
+
+export type strokesCreateStrokesBulkErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type strokesCreateStrokesBulkError = strokesCreateStrokesBulkErrors[keyof strokesCreateStrokesBulkErrors];
+
+export type strokesCreateStrokesBulkResponses = {
+    /**
+     * Response Strokes-Create Strokes Bulk
+     *
+     * Successful Response
+     */
+    200: Array<StrokePublic>;
+};
+
+export type strokesCreateStrokesBulkResponse = strokesCreateStrokesBulkResponses[keyof strokesCreateStrokesBulkResponses];
+
+export type strokesDeleteStrokeData = {
+    body?: never;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/strokes/{id}';
+};
+
+export type strokesDeleteStrokeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type strokesDeleteStrokeError = strokesDeleteStrokeErrors[keyof strokesDeleteStrokeErrors];
+
+export type strokesDeleteStrokeResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type strokesDeleteStrokeResponse = strokesDeleteStrokeResponses[keyof strokesDeleteStrokeResponses];
 
 export type privateCreateUserData = {
     body: PrivateUserCreate;
