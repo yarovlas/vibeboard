@@ -131,6 +131,8 @@ class PostItCreate(PostItBase):
 class PostItUpdate(SQLModel):
     title: str | None = Field(default=None, max_length=255)
     content: str | None = Field(default=None, max_length=10_000)
+    x: float | None = None
+    y: float | None = None
 
 
 # Database model, database table inferred from class name

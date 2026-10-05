@@ -169,6 +169,31 @@ def test_update_postit(
     assert body["y"] == 20
 
 
+def test_update_postit_position(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Movable note", "x": 10, "y": 20},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+        json={"x": 300, "y": 250},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["x"] == 300
+    assert body["y"] == 250
+    assert body["content"] == "Movable note"
+
+
 def test_update_postit_not_found(
     client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
