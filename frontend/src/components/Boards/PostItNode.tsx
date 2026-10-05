@@ -34,6 +34,7 @@ interface PostItNodeProps {
   isEditing: boolean
   onEdit: (postit: BoardPostIt) => void
   onDelete: (postit: BoardPostIt) => void
+  onDragEnd?: (postit: BoardPostIt, position: { x: number; y: number }) => void
 }
 
 export function PostItNode({
@@ -41,6 +42,7 @@ export function PostItNode({
   isEditing,
   onEdit,
   onDelete,
+  onDragEnd,
 }: PostItNodeProps) {
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
@@ -51,12 +53,19 @@ export function PostItNode({
     onEdit(postit)
   }
 
+  const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
+    event.cancelBubble = true
+    onDragEnd?.(postit, { x: event.target.x(), y: event.target.y() })
+  }
+
   return (
     <Group
       x={postit.x}
       y={postit.y}
       name={`postit-${postit.id}`}
+      draggable={!isEditing}
       onDblClick={handleDoubleClick}
+      onDragEnd={handleDragEnd}
     >
       <Rect
         width={POSTIT_WIDTH}
