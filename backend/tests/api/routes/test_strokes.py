@@ -125,6 +125,29 @@ def test_read_strokes(
     assert content[0]["points"] == [5, 5, 15, 15]
 
 
+def test_read_strokes_returns_creation_order(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    ids = []
+    for points in ([0, 0, 10, 10], [20, 20, 30, 30], [40, 40, 50, 50]):
+        created = client.post(
+            f"{settings.API_V1_STR}/boards/{board_id}/strokes",
+            headers=first_user_token_headers,
+            json={"points": points},
+        )
+        assert created.status_code == 200
+        ids.append(created.json()["id"])
+
+    response = client.get(
+        f"{settings.API_V1_STR}/boards/{board_id}/strokes",
+        headers=first_user_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert [stroke["id"] for stroke in response.json()] == ids
+
+
 def test_read_strokes_board_not_found(
     client: TestClient, first_user_token_headers: dict[str, str]
 ) -> None:
