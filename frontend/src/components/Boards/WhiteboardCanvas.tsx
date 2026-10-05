@@ -4,7 +4,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { KonvaEventObject } from "konva/lib/Node"
-import { Pencil, Plus } from "lucide-react"
+import { Pencil, Plus, Redo2, Undo2 } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
 
@@ -105,7 +105,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const [penColor, setPenColor] = useState("#111827")
   const [penWidth, setPenWidth] = useState(4)
   const [currentPoints, setCurrentPoints] = useState<number[] | null>(null)
+  const [redoStack, setRedoStack] = useState<BoardStroke[]>([])
   const isPointerDown = useRef(false)
+  const doomedStrokeIds = useRef(new Set<string>())
   const { data: strokes } = useSuspenseQuery(getStrokesQueryOptions(boardId))
   const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
     null,
@@ -133,6 +135,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   useEffect(() => {
     if (editingId) editorRef.current?.focus()
   }, [editingId])
+
+  useEffect(() => {
+    setRedoStack([])
+  }, [])
 
   const mutation = useMutation({
     mutationFn: (draft: BoardPostIt) =>
@@ -222,6 +228,25 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     },
   })
 
+  const deleteStrokeMutation = useMutation({
+    mutationFn: (strokeId: string) =>
+      StrokesService.deleteStroke({
+        path: { board_id: boardId, id: strokeId },
+      }),
+    onError: (error) => {
+      setRedoStack([])
+      void queryClient.invalidateQueries({
+        queryKey: getStrokesQueryKey(boardId),
+      })
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["boards", "detail", boardId],
+      })
+    },
+  })
+
   const strokeMutation = useMutation({
     mutationFn: (line: BoardStroke) =>
       StrokesService.createStroke({
@@ -234,6 +259,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         path: { board_id: boardId },
       }),
     onError: (error, line) => {
+      doomedStrokeIds.current.delete(line.id)
       queryClient.setQueryData<BoardStroke[]>(
         getStrokesQueryKey(boardId),
         (current) => current?.filter((stroke) => stroke.id !== line.id),
@@ -241,6 +267,13 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       handleError.call(showErrorToast, error)
     },
     onSuccess: (response, line) => {
+      if (doomedStrokeIds.current.has(line.id)) {
+        // Undone while the save was still in flight: remove the saved
+        // stroke again instead of inserting it into the canvas.
+        doomedStrokeIds.current.delete(line.id)
+        deleteStrokeMutation.mutate(response.data.id)
+        return
+      }
       const savedStroke = normalizeStroke(response.data)
       queryClient.setQueryData<BoardStroke[]>(
         getStrokesQueryKey(boardId),
@@ -390,10 +423,66 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         getStrokesQueryKey(boardId),
         (current) => [...(current ?? []), line],
       )
+      setRedoStack([])
       strokeMutation.mutate(line)
     }
     setCurrentPoints(null)
   }
+
+  const undoStroke = () => {
+    const last = strokes[strokes.length - 1]
+    if (!last) return
+    queryClient.setQueryData<BoardStroke[]>(
+      getStrokesQueryKey(boardId),
+      (current) => current?.filter((stroke) => stroke.id !== last.id),
+    )
+    setRedoStack((current) => [...current, last])
+    if (last.id.startsWith("temporary-")) {
+      doomedStrokeIds.current.add(last.id)
+    } else {
+      deleteStrokeMutation.mutate(last.id)
+    }
+  }
+
+  const redoStroke = () => {
+    const last = redoStack[redoStack.length - 1]
+    if (!last) return
+    // Re-save as a new stroke so this works for deleted strokes too,
+    // regardless of whether the original save had finished.
+    const line: BoardStroke = { ...last, id: createTemporaryId() }
+    setRedoStack((current) => current.slice(0, -1))
+    queryClient.setQueryData<BoardStroke[]>(
+      getStrokesQueryKey(boardId),
+      (current) => [...(current ?? []), line],
+    )
+    strokeMutation.mutate(line)
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      const key = event.key.toLowerCase()
+      if (key === "z" && !event.shiftKey) {
+        event.preventDefault()
+        undoStroke()
+      } else if (key === "y" || (key === "z" && event.shiftKey)) {
+        event.preventDefault()
+        redoStroke()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  })
 
   return (
     <div className="flex min-h-[60vh] flex-1 flex-col gap-3">
@@ -408,6 +497,30 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             : "Double-click the canvas to add a post-it."}
         </p>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={undoStroke}
+            disabled={strokes.length === 0}
+            data-testid="undo-stroke"
+            aria-label="Undo stroke"
+            title="Undo stroke (Ctrl+Z)"
+          >
+            <Undo2 />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={redoStroke}
+            disabled={redoStack.length === 0}
+            data-testid="redo-stroke"
+            aria-label="Redo stroke"
+            title="Redo stroke (Ctrl+Y)"
+          >
+            <Redo2 />
+          </Button>
           {isDrawing && (
             <>
               <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
