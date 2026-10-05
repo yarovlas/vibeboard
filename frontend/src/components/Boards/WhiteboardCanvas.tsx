@@ -208,11 +208,18 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (handledIds.current.has(draft.id)) return
     handledIds.current.add(draft.id)
     setEditingId((current) => (current === draft.id ? null : current))
-    const isTemporary = draft.id.startsWith("temporary-")
+    // The render-scope draft can predate the last keystroke when blur fires
+    // before re-render. The query cache is updated synchronously on every
+    // change, so always commit the freshest version.
+    const fresh =
+      queryClient
+        .getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId))
+        ?.find((postit) => postit.id === draft.id) ?? draft
+    const isTemporary = fresh.id.startsWith("temporary-")
     if (isTemporary) {
-      mutation.mutate(draft)
+      mutation.mutate(fresh)
     } else {
-      updateMutation.mutate(draft)
+      updateMutation.mutate(fresh)
     }
   }
 
