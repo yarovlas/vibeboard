@@ -77,6 +77,22 @@ Stop a locally running FastAPI server before starting the Compose backend becaus
 
 **Note**: The first time you start the stack, it might take a minute for all the services to be ready. To monitor it, use `docker compose logs`, or `docker compose logs backend` for the backend service.
 
+## Backend Tests
+
+Run the backend suite against an isolated `app_test` database, never against the dev database (`app`): the test teardown deletes all users, boards and post-its.
+
+```bash
+bash scripts/test-backend-local.sh
+```
+
+Extra pytest arguments are passed through, for example:
+
+```bash
+bash scripts/test-backend-local.sh backend/tests/api/routes/test_postits.py -q
+```
+
+Redeploying without data loss: rebuild in place with `docker compose up -d --build backend`. Never use `docker compose down -v` on a stack whose data you want to keep — the `-v` flag deletes the postgres volume with all users, boards and post-its.
+
 ## Mailpit
 
 [Mailpit](https://mailpit.axllent.org) captures emails sent during local development instead of delivering them. The local backend connects to it at `localhost:1025`, and the Compose backend connects to the `mailpit` service. Captured emails are available at <http://localhost:8025>.
