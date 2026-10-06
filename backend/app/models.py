@@ -122,6 +122,7 @@ class PostItBase(SQLModel):
     content: str = Field(default="", max_length=10_000)
     x: float = 0.0
     y: float = 0.0
+    color: str = Field(default="#FEF3C7", max_length=32)
 
 
 # Properties to receive on post-it creation
@@ -135,6 +136,7 @@ class PostItUpdate(SQLModel):
     content: str | None = Field(default=None, max_length=10_000)
     x: float | None = None
     y: float | None = None
+    color: str | None = Field(default=None, max_length=32)
 
 
 # Database model, database table inferred from class name
