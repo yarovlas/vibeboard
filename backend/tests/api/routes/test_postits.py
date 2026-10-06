@@ -291,3 +291,187 @@ def test_delete_postit_not_enough_permissions(
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Not enough permissions"
+
+
+def test_create_postit_default_color_and_no_group(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    response = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Default styled note"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["color"] == "#FEF3C7"
+    assert body["group_id"] is None
+
+
+def test_create_postit_with_color(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    response = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Blue note", "color": "#BFDBFE"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["color"] == "#BFDBFE"
+
+
+def test_update_postit_color(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Recolor me"},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+        json={"color": "#FBCFE8"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["color"] == "#FBCFE8"
+    assert body["content"] == "Recolor me"
+
+
+def test_update_postit_group_id(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Group me"},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+    group_id = str(uuid.uuid4())
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+        json={"group_id": group_id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["group_id"] == group_id
+
+    ungroup = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+        json={"group_id": None},
+    )
+    assert ungroup.status_code == 200
+    assert ungroup.json()["group_id"] is None
+
+
+def test_bulk_update_postit_positions(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    ids: list[str] = []
+    for index in range(2):
+        created = client.post(
+            f"{settings.API_V1_STR}/boards/{board_id}/postits",
+            headers=first_user_token_headers,
+            json={"content": f"Grouped {index}", "x": 10 + index * 250, "y": 20},
+        )
+        assert created.status_code == 200
+        ids.append(created.json()["id"])
+
+    group_id = str(uuid.uuid4())
+    grouped = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/bulk",
+        headers=first_user_token_headers,
+        json=[
+            {"id": ids[0], "group_id": group_id},
+            {"id": ids[1], "group_id": group_id},
+        ],
+    )
+    assert grouped.status_code == 200
+    assert all(item["group_id"] == group_id for item in grouped.json())
+
+    moved = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/bulk",
+        headers=first_user_token_headers,
+        json=[
+            {"id": ids[0], "x": 160, "y": 120},
+            {"id": ids[1], "x": 410, "y": 120},
+        ],
+    )
+    assert moved.status_code == 200
+    positions = {item["id"]: (item["x"], item["y"]) for item in moved.json()}
+    assert positions[ids[0]] == (160, 120)
+    assert positions[ids[1]] == (410, 120)
+    assert all(item["group_id"] == group_id for item in moved.json())
+
+
+def test_bulk_ungroup(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Grouped note", "group_id": str(uuid.uuid4())},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+    assert created.json()["group_id"] is not None
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/bulk",
+        headers=first_user_token_headers,
+        json=[{"id": postit_id, "group_id": None}],
+    )
+    assert response.status_code == 200
+    assert response.json()[0]["group_id"] is None
+
+
+def test_bulk_update_not_found(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/bulk",
+        headers=first_user_token_headers,
+        json=[{"id": str(uuid.uuid4()), "x": 10, "y": 10}],
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Post-it not found"
+
+
+def test_bulk_update_not_enough_permissions(
+    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
+) -> None:
+    board = create_random_board(db)
+    from app.models import PostIt
+
+    postit = PostIt(board_id=board.id, title="Private", content="Secret", x=0, y=0)
+    db.add(postit)
+    db.commit()
+    db.refresh(postit)
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board.id}/postits/bulk",
+        headers=normal_user_token_headers,
+        json=[{"id": str(postit.id), "x": 99, "y": 99}],
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Not enough permissions"
