@@ -250,6 +250,232 @@ test.describe("Post-its groeperen in mappen", () => {
     expect(await afterGet.json()).toHaveLength(0)
   })
 
+  test("kiest een kleur bij het aanmaken", async ({ page }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+
+    await page.getByRole("button", { name: "Add post-it" }).click()
+    const editor = page.getByRole("textbox", { name: "Post-it text" })
+    await expect(editor).toBeFocused()
+    // The palette stays enabled while the creation editor is open.
+    const pinkButton = page.getByTestId("postit-color-pink")
+    await expect(pinkButton).toBeEnabled()
+    await pinkButton.click()
+    await editor.fill("Roze vanaf het begin")
+    await expect(editor).toHaveValue("Roze vanaf het begin")
+
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await editor.blur()
+    const response = await responsePromise
+    expect(response.status()).toBe(200)
+    expect(response.request().postDataJSON().color).toBe("#FBCFE8")
+    await expect(editor).toHaveCount(0)
+
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    const getResponse = await getResponsePromise
+    expect(getResponse.status()).toBe(200)
+    const postits = (await getResponse.json()) as ApiPostIt[]
+    expect(postits).toHaveLength(1)
+    expect(postits[0].color).toBe("#FBCFE8")
+  })
+
+  test("voegt een post-it niet automatisch toe aan een map bij aanmaken", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPinkPair(
+      page,
+      boardId,
+      "Eerste vaste notitie",
+      "Tweede vaste notitie",
+    )
+    await collapseByColor(page, boardId, ["#FBCFE8"])
+    const folderList = page.getByRole("list", {
+      name: "Post-it folders on this whiteboard",
+    })
+    await expect(folderList).toContainText("Map met 2 post-its")
+
+    // A new pink post-it expands the folder instead of joining it unseen.
+    await page.getByRole("button", { name: "Add post-it" }).click()
+    const editor = page.getByRole("textbox", { name: "Post-it text" })
+    await expect(editor).toBeFocused()
+    await page.getByTestId("postit-color-pink").click()
+    await editor.fill("Derde blijft zichtbaar")
+    await expect(editor).toHaveValue("Derde blijft zichtbaar")
+
+    const createPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    const expandPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().endsWith(`/api/v1/boards/${boardId}`),
+    )
+    await editor.blur()
+    const created = await createPromise
+    expect(created.status()).toBe(200)
+    expect(created.request().postDataJSON().color).toBe("#FBCFE8")
+    const expanded = await expandPromise
+    expect(expanded.status()).toBe(200)
+    expect(expanded.request().postDataJSON().collapsed_colors).toEqual([])
+
+    await expect(folderList.locator("li")).toHaveCount(0)
+    await expect(
+      page.getByRole("list", { name: "Post-its on this whiteboard" }),
+    ).toContainText("Derde blijft zichtbaar")
+  })
+
+  test("vouwt een map automatisch terug zonder interactie", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPinkPair(
+      page,
+      boardId,
+      "Eerste luie notitie",
+      "Tweede luie notitie",
+    )
+    await collapseByColor(page, boardId, ["#FBCFE8"])
+    const folderList = page.getByRole("list", {
+      name: "Post-it folders on this whiteboard",
+    })
+    await expect(folderList).toContainText("Map met 2 post-its")
+
+    const center = folderSlotCenter()
+    const stageBox = await page.getByTestId("whiteboard-stage").boundingBox()
+    if (!stageBox) throw new Error("Whiteboard stage has no bounding box")
+    const expandPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().endsWith(`/api/v1/boards/${boardId}`),
+    )
+    await page.mouse.click(stageBox.x + center.x, stageBox.y + center.y)
+    await expandPromise
+    await expect(folderList.locator("li")).toHaveCount(0)
+
+    // Without touching a member, the folder collapses back by itself.
+    const recollapsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().endsWith(`/api/v1/boards/${boardId}`),
+      { timeout: 15000 },
+    )
+    const recollapsed = await recollapsePromise
+    expect(recollapsed.status()).toBe(200)
+    expect(recollapsed.request().postDataJSON().collapsed_colors).toEqual([
+      "#FBCFE8",
+    ])
+    await expect(folderList).toContainText("Map met 2 post-its")
+  })
+
+  test("blijft uitgeklapt bij interactie met een lid", async ({ page }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    const { first } = await createPinkPair(
+      page,
+      boardId,
+      "Eerste actieve notitie",
+      "Tweede actieve notitie",
+    )
+    await collapseByColor(page, boardId, ["#FBCFE8"])
+
+    const center = folderSlotCenter()
+    const stageBox = await page.getByTestId("whiteboard-stage").boundingBox()
+    if (!stageBox) throw new Error("Whiteboard stage has no bounding box")
+    const expandPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().endsWith(`/api/v1/boards/${boardId}`),
+    )
+    await page.mouse.click(stageBox.x + center.x, stageBox.y + center.y)
+    await expandPromise
+
+    // Dragging a member counts as interaction: no auto-collapse follows.
+    const dragPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`) &&
+        !response.url().includes("/bulk"),
+    )
+    await page.mouse.move(stageBox.x + first.x + 110, stageBox.y + first.y + 90)
+    await page.mouse.down()
+    await page.mouse.move(
+      stageBox.x + first.x + 110 + 50,
+      stageBox.y + first.y + 90 + 30,
+      { steps: 10 },
+    )
+    await page.mouse.up()
+    expect((await dragPromise).status()).toBe(200)
+
+    await page.waitForTimeout(11000)
+    await expect(
+      page
+        .getByRole("list", {
+          name: "Post-it folders on this whiteboard",
+        })
+        .locator("li"),
+    ).toHaveCount(0)
+  })
+
+  test("dubbelklik naast een map maakt een bewaarbare post-it", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPinkPair(
+      page,
+      boardId,
+      "Eerste naast-notitie",
+      "Tweede naast-notitie",
+    )
+    await collapseByColor(page, boardId, ["#FBCFE8"])
+
+    // Empty canvas far from the folder row and the stored members.
+    const stageBox = await page.getByTestId("whiteboard-stage").boundingBox()
+    if (!stageBox) throw new Error("Whiteboard stage has no bounding box")
+    await page.mouse.dblclick(stageBox.x + 600, stageBox.y + 320)
+    const editor = page.getByRole("textbox", { name: "Post-it text" })
+    await expect(editor).toBeVisible()
+    await editor.fill("Derde naast de map")
+    await expect(editor).toHaveValue("Derde naast de map")
+
+    const createPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await editor.blur()
+    const created = await createPromise
+    expect(created.status()).toBe(200)
+    await expect(editor).toHaveCount(0)
+
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    const getResponse = await getResponsePromise
+    expect(getResponse.status()).toBe(200)
+    expect(await getResponse.json()).toHaveLength(3)
+    await expect(
+      page.getByRole("list", { name: "Post-its on this whiteboard" }),
+    ).toContainText("Derde naast de map")
+  })
+
   test("vouwt alle mappen uit via de degroepeer-knop", async ({ page }) => {
     await createLoggedInBoard(page)
     const boardId = getBoardId(page)
