@@ -207,6 +207,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       setSelectedIds((current) =>
         current.map((id) => (id === draft.id ? savedPostIt.id : id)),
       )
+      ensureExpanded(savedPostIt.color)
       queryClient.setQueryData<BoardPostIt[]>(
         getPostitsQueryKey(boardId),
         (current) =>
@@ -432,6 +433,14 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     setCollapsedColors(collapsedColors.filter((item) => item !== color))
   }
 
+  const ensureExpanded = (color: string) => {
+    // A post-it never disappears into a folder as a side effect of saving:
+    // creating or recoloring expands the color instead.
+    if (collapsedColors.includes(color)) {
+      setCollapsedColors(collapsedColors.filter((item) => item !== color))
+    }
+  }
+
   const removeDraft = (postitId: string) => {
     queryClient.setQueryData<BoardPostIt[]>(
       getPostitsQueryKey(boardId),
@@ -495,17 +504,33 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         !postit.id.startsWith("temporary-") &&
         postit.color !== color,
     )
-    if (targets.length === 0) return
+    // The open editor can recolor the draft being created as well: a
+    // temporary draft is only updated in the cache and saved on commit.
+    const editingDraft =
+      editingPostIt &&
+      !selectedIds.includes(editingPostIt.id) &&
+      editingPostIt.color !== color
+        ? editingPostIt
+        : null
+    if (targets.length === 0 && !editingDraft) return
+    const recoloredIds = new Set([
+      ...selectedIds,
+      ...(editingDraft ? [editingDraft.id] : []),
+    ])
     queryClient.setQueryData<BoardPostIt[]>(
       getPostitsQueryKey(boardId),
       (current) =>
         current?.map((postit) =>
-          selectedIds.includes(postit.id) ? { ...postit, color } : postit,
+          recoloredIds.has(postit.id) ? { ...postit, color } : postit,
         ),
     )
     for (const target of targets) {
       updateMutation.mutate({ ...target, color })
     }
+    if (editingDraft && !editingDraft.id.startsWith("temporary-")) {
+      updateMutation.mutate({ ...editingDraft, color })
+    }
+    ensureExpanded(color)
   }
 
   const movePostIt = (
@@ -708,7 +733,11 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                 data-testid={`postit-color-${swatch.name}`}
                 aria-label={`Post-it color ${swatch.name}`}
                 title={`Post-it color ${swatch.name}`}
-                disabled={selectedIds.length === 0}
+                disabled={selectedIds.length === 0 && !editingPostIt}
+                onMouseDown={(event) => {
+                  // Keep the focus (and the open editor) while recoloring.
+                  event.preventDefault()
+                }}
                 onClick={() => recolorSelected(swatch.value)}
                 className="h-7 w-7 rounded-full border border-black/10 disabled:cursor-not-allowed disabled:opacity-30"
                 style={{ backgroundColor: swatch.value }}
