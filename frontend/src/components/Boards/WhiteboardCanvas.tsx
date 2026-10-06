@@ -115,6 +115,18 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     null,
   )
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  // Stable React keys for post-its: when a draft is saved, its id changes
+  // from temporary to saved. Remounting the Konva node on that change breaks
+  // in-flight mouse sequences and hit-testing, so the key stays put.
+  const postItKeys = useRef(new Map<string, string>())
+
+  const getPostItKey = (postit: BoardPostIt) => {
+    if (postit.id.startsWith("temporary-")) return postit.id
+    const known = postItKeys.current.get(postit.id)
+    if (known) return known
+    postItKeys.current.set(postit.id, postit.id)
+    return postit.id
+  }
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current
@@ -163,10 +175,21 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         (current) => current?.filter((postit) => postit.id !== draft.id),
       )
       setEditingId((current) => (current === draft.id ? null : current))
+      setSelectedIds((current) => current.filter((id) => id !== draft.id))
       handleError.call(showErrorToast, error)
     },
     onSuccess: (response, draft) => {
       const savedPostIt = normalizePostIt(response.data)
+      // The temporary id is replaced by the saved id: migrate in-flight
+      // editing/selection state and keep the stable React key so the Konva
+      // node is updated in place instead of remounted.
+      postItKeys.current.set(savedPostIt.id, draft.id)
+      setEditingId((current) =>
+        current === draft.id ? savedPostIt.id : current,
+      )
+      setSelectedIds((current) =>
+        current.map((id) => (id === draft.id ? savedPostIt.id : id)),
+      )
       queryClient.setQueryData<BoardPostIt[]>(
         getPostitsQueryKey(boardId),
         (current) =>
@@ -229,6 +252,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         getPostitsQueryKey(boardId),
         (current) => current?.filter((postit) => postit.id !== postitId),
       )
+      postItKeys.current.delete(postitId)
       setSelectedIds((current) => current.filter((id) => id !== postitId))
       void queryClient.invalidateQueries({
         queryKey: ["boards", "detail", boardId],
@@ -376,7 +400,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }
 
   const selectPostIt = (postit: BoardPostIt, additive: boolean) => {
-    if (postit.id.startsWith("temporary-")) return
+    // Temporary ids are fine: they migrate to the saved id when the
+    // create request succeeds, so a selection made mid-save is kept.
     setSelectedIds((current) => {
       if (additive) {
         return current.includes(postit.id)
@@ -512,6 +537,11 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     updateMutation.mutate(moved)
   }
 
+  const editPostIt = (postit: BoardPostIt) => {
+    handledIds.current.delete(postit.id)
+    setEditingId(postit.id)
+  }
+
   const addDraft = (position: { x: number; y: number }) => {
     if (editingPostIt && !handledIds.current.has(editingPostIt.id)) {
       commitDraft(editingPostIt)
@@ -541,6 +571,24 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
     const pointer = stage.getRelativePointerPosition()
     if (!pointer) return
+
+    // Fallback for a stale Konva hit graph (e.g. a post-it that was just
+    // remounted): a double-click inside a saved post-it edits it instead of
+    // stacking a new draft on top.
+    const hit = [...postits]
+      .reverse()
+      .find(
+        (postit) =>
+          !postit.id.startsWith("temporary-") &&
+          pointer.x >= postit.x &&
+          pointer.x <= postit.x + POSTIT_WIDTH &&
+          pointer.y >= postit.y &&
+          pointer.y <= postit.y + POSTIT_HEIGHT,
+      )
+    if (hit) {
+      editPostIt(hit)
+      return
+    }
 
     addDraft({
       x: pointer.x - POSTIT_WIDTH / 2,
@@ -812,17 +860,20 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
               {postits.map((postit) =>
                 postit.id === editingId ? null : (
                   <PostItNode
-                    key={postit.id}
+                    key={getPostItKey(postit)}
                     postit={postit}
                     isEditing={false}
                     isDrawing={isDrawing}
                     isSelected={selectedIds.includes(postit.id)}
                     isGrouped={postit.group_id !== null}
                     onEdit={(p) => {
-                      handledIds.current.delete(p.id)
-                      setEditingId(p.id)
+                      editPostIt(p)
                     }}
-                    onDelete={(p) => setDeleteCandidate(p)}
+                    onDelete={(p) => {
+                      // A draft that is still being saved has no server id
+                      // yet; deleting it would hit the API with a temp id.
+                      if (!p.id.startsWith("temporary-")) setDeleteCandidate(p)
+                    }}
                     onSelect={(p, additive) => selectPostIt(p, additive)}
                     onDragEnd={(p, position) => movePostIt(p, position)}
                     dragBoundFunc={(position) =>
@@ -899,7 +950,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
         <ul className="sr-only" aria-label="Post-its on this whiteboard">
           {postits.map((postit) => (
-            <li key={postit.id}>
+            <li key={getPostItKey(postit)}>
               {postit.title
                 ? `${postit.title}: ${postit.content}`
                 : postit.content || "Empty post-it"}
