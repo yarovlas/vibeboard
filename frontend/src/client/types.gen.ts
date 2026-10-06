@@ -129,6 +129,40 @@ export type NewPassword = {
 };
 
 /**
+ * PostItBulkUpdate
+ */
+export type PostItBulkUpdate = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title?: string | null;
+    /**
+     * Content
+     */
+    content?: string | null;
+    /**
+     * X
+     */
+    x?: number | null;
+    /**
+     * Y
+     */
+    y?: number | null;
+    /**
+     * Color
+     */
+    color?: string | null;
+    /**
+     * Group Id
+     */
+    group_id?: string | null;
+};
+
+/**
  * PostItCreate
  */
 export type PostItCreate = {
@@ -148,6 +182,14 @@ export type PostItCreate = {
      * Y
      */
     y?: number;
+    /**
+     * Color
+     */
+    color?: string;
+    /**
+     * Group Id
+     */
+    group_id?: string | null;
 };
 
 /**
@@ -170,6 +212,14 @@ export type PostItPublic = {
      * Y
      */
     y?: number;
+    /**
+     * Color
+     */
+    color?: string;
+    /**
+     * Group Id
+     */
+    group_id?: string | null;
     /**
      * Id
      */
@@ -200,6 +250,14 @@ export type PostItUpdate = {
      * Y
      */
     y?: number | null;
+    /**
+     * Color
+     */
+    color?: string | null;
+    /**
+     * Group Id
+     */
+    group_id?: string | null;
 };
 
 /**
@@ -1088,6 +1146,41 @@ export type postitsCreatePostitResponses = {
 };
 
 export type postitsCreatePostitResponse = postitsCreatePostitResponses[keyof postitsCreatePostitResponses];
+
+export type postitsUpdatePostitsBulkData = {
+    /**
+     * Postits In
+     */
+    body: Array<PostItBulkUpdate>;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/postits/bulk';
+};
+
+export type postitsUpdatePostitsBulkErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type postitsUpdatePostitsBulkError = postitsUpdatePostitsBulkErrors[keyof postitsUpdatePostitsBulkErrors];
+
+export type postitsUpdatePostitsBulkResponses = {
+    /**
+     * Response Postits-Update Postits Bulk
+     *
+     * Successful Response
+     */
+    200: Array<PostItPublic>;
+};
+
+export type postitsUpdatePostitsBulkResponse = postitsUpdatePostitsBulkResponses[keyof postitsUpdatePostitsBulkResponses];
 
 export type postitsDeletePostitData = {
     body?: never;
