@@ -227,7 +227,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       setSelectedIds((current) =>
         current.map((id) => (id === draft.id ? savedPostIt.id : id)),
       )
-      ensureExpanded(savedPostIt.color)
+      // A new post-it silently joins a collapsed color: the folder stays.
       queryClient.setQueryData<BoardPostIt[]>(
         getPostitsQueryKey(boardId),
         (current) =>
