@@ -1,9 +1,13 @@
 import type { KonvaEventObject } from "konva/lib/Node"
-import { Circle, Group, Rect, Text } from "react-konva"
+import { Group, Rect, Text } from "react-konva"
 
 import { POSTIT_HEIGHT, POSTIT_WIDTH } from "@/components/Boards/PostItNode"
 
 export const FOLDER_CORNER_RADIUS = 28
+// Counter badge: the same figure as a post-it, at 1/6 of the main size.
+export const FOLDER_BADGE_WIDTH = Math.round(POSTIT_WIDTH / 6)
+export const FOLDER_BADGE_HEIGHT = Math.round(POSTIT_HEIGHT / 6)
+export const FOLDER_BADGE_RADIUS = 5
 const FOLDER_BADGE_TEXT = "#1F2937"
 const FOLDER_MUTED_TEXT = "#92400E"
 
@@ -64,23 +68,28 @@ export function FolderNode({
         shadowOffsetY={4}
         perfectDrawEnabled={false}
       />
-      <Circle
-        x={POSTIT_WIDTH - 24}
-        y={24}
-        radius={15}
+      <Rect
+        x={POSTIT_WIDTH - FOLDER_BADGE_WIDTH - 8}
+        y={8}
+        width={FOLDER_BADGE_WIDTH}
+        height={FOLDER_BADGE_HEIGHT}
         fill="#FFFFFF"
         stroke="#E5E7EB"
         strokeWidth={1}
+        cornerRadius={FOLDER_BADGE_RADIUS}
+        shadowColor="#1F2937"
+        shadowBlur={4}
+        shadowOpacity={0.15}
         listening={false}
       />
       <Text
-        x={POSTIT_WIDTH - 24 - 15}
-        y={24 - 10}
-        width={30}
-        height={20}
+        x={POSTIT_WIDTH - FOLDER_BADGE_WIDTH - 8}
+        y={8 + (FOLDER_BADGE_HEIGHT - 18) / 2}
+        width={FOLDER_BADGE_WIDTH}
+        height={18}
         align="center"
         text={String(count)}
-        fontSize={15}
+        fontSize={14}
         fontStyle="bold"
         fill={FOLDER_BADGE_TEXT}
         listening={false}
