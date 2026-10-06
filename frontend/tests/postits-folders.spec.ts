@@ -288,7 +288,7 @@ test.describe("Post-its groeperen in mappen", () => {
     expect(postits[0].color).toBe("#FBCFE8")
   })
 
-  test("voegt een post-it niet automatisch toe aan een map bij aanmaken", async ({
+  test("voegt een nieuwe post-it stil toe aan een samengevouwen map", async ({
     page,
   }) => {
     await createLoggedInBoard(page)
@@ -305,36 +305,38 @@ test.describe("Post-its groeperen in mappen", () => {
     })
     await expect(folderList).toContainText("Map met 2 post-its")
 
-    // A new pink post-it expands the folder instead of joining it unseen.
+    // A new pink post-it joins the collapsed folder: no ungrouping.
     await page.getByRole("button", { name: "Add post-it" }).click()
     const editor = page.getByRole("textbox", { name: "Post-it text" })
     await expect(editor).toBeFocused()
     await page.getByTestId("postit-color-pink").click()
-    await editor.fill("Derde blijft zichtbaar")
-    await expect(editor).toHaveValue("Derde blijft zichtbaar")
+    await editor.fill("Derde joint stil")
+    await expect(editor).toHaveValue("Derde joint stil")
 
     const createPromise = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
         response.url().includes(`/api/v1/boards/${boardId}/postits`),
     )
-    const expandPromise = page.waitForResponse(
-      (response) =>
-        response.request().method() === "PATCH" &&
-        response.url().endsWith(`/api/v1/boards/${boardId}`),
-    )
     await editor.blur()
     const created = await createPromise
     expect(created.status()).toBe(200)
     expect(created.request().postDataJSON().color).toBe("#FBCFE8")
-    const expanded = await expandPromise
-    expect(expanded.status()).toBe(200)
-    expect(expanded.request().postDataJSON().collapsed_colors).toEqual([])
+    await expect(editor).toHaveCount(0)
 
-    await expect(folderList.locator("li")).toHaveCount(0)
-    await expect(
-      page.getByRole("list", { name: "Post-its on this whiteboard" }),
-    ).toContainText("Derde blijft zichtbaar")
+    // No board PATCH (no ungroup) and the folder now counts three.
+    await expect(folderList).toContainText("Map met 3 post-its")
+
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    const getResponse = await getResponsePromise
+    expect(getResponse.status()).toBe(200)
+    expect(await getResponse.json()).toHaveLength(3)
+    await expect(folderList).toContainText("Map met 3 post-its")
   })
 
   test("vouwt een map automatisch terug zonder interactie", async ({
