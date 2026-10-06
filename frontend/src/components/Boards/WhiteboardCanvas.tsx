@@ -4,7 +4,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { KonvaEventObject } from "konva/lib/Node"
-import { Pencil, Plus, Redo2, Undo2 } from "lucide-react"
+import { Group, Pencil, Plus, Redo2, Undo2, Ungroup } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
 
@@ -229,6 +229,41 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         getPostitsQueryKey(boardId),
         (current) => current?.filter((postit) => postit.id !== postitId),
       )
+      setSelectedIds((current) => current.filter((id) => id !== postitId))
+      void queryClient.invalidateQueries({
+        queryKey: ["boards", "detail", boardId],
+      })
+    },
+  })
+
+  const bulkMutation = useMutation({
+    mutationFn: (
+      items: Array<{
+        id: string
+        x?: number
+        y?: number
+        color?: string
+        group_id?: string | null
+      }>,
+    ) =>
+      PostitsService.updatePostitsBulk({
+        body: items,
+        path: { board_id: boardId },
+      }),
+    onError: (error) => {
+      void queryClient.invalidateQueries({
+        queryKey: getPostitsQueryKey(boardId),
+      })
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: (response) => {
+      const saved = response.data.map(normalizePostIt)
+      const savedById = new Map(saved.map((postit) => [postit.id, postit]))
+      queryClient.setQueryData<BoardPostIt[]>(
+        getPostitsQueryKey(boardId),
+        (current) =>
+          current?.map((postit) => savedById.get(postit.id) ?? postit),
+      )
       void queryClient.invalidateQueries({
         queryKey: ["boards", "detail", boardId],
       })
@@ -370,6 +405,51 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     for (const target of targets) {
       updateMutation.mutate({ ...target, color })
     }
+  }
+
+  const groupSelected = () => {
+    const targets = postits.filter(
+      (postit) =>
+        selectedIds.includes(postit.id) && !postit.id.startsWith("temporary-"),
+    )
+    if (targets.length < 2) return
+    const groupId = globalThis.crypto?.randomUUID
+      ? globalThis.crypto.randomUUID()
+      : `group-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    queryClient.setQueryData<BoardPostIt[]>(
+      getPostitsQueryKey(boardId),
+      (current) =>
+        current?.map((postit) =>
+          selectedIds.includes(postit.id)
+            ? { ...postit, group_id: groupId }
+            : postit,
+        ),
+    )
+    bulkMutation.mutate(
+      targets.map((target) => ({ id: target.id, group_id: groupId })),
+    )
+  }
+
+  const ungroupSelected = () => {
+    const targets = postits.filter(
+      (postit) =>
+        selectedIds.includes(postit.id) &&
+        !postit.id.startsWith("temporary-") &&
+        postit.group_id !== null,
+    )
+    if (targets.length === 0) return
+    queryClient.setQueryData<BoardPostIt[]>(
+      getPostitsQueryKey(boardId),
+      (current) =>
+        current?.map((postit) =>
+          selectedIds.includes(postit.id)
+            ? { ...postit, group_id: null }
+            : postit,
+        ),
+    )
+    bulkMutation.mutate(
+      targets.map((target) => ({ id: target.id, group_id: null })),
+    )
   }
 
   const movePostIt = (
@@ -557,6 +637,35 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
               />
             ))}
           </fieldset>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={groupSelected}
+            disabled={selectedIds.length < 2}
+            data-testid="group-postits"
+            aria-label="Group post-its"
+            title="Group selected post-its (select with Shift-click)"
+          >
+            <Group />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={ungroupSelected}
+            disabled={
+              !postits.some(
+                (postit) =>
+                  selectedIds.includes(postit.id) && postit.group_id !== null,
+              )
+            }
+            data-testid="ungroup-postits"
+            aria-label="Ungroup post-its"
+            title="Ungroup selected post-its"
+          >
+            <Ungroup />
+          </Button>
           <Button
             type="button"
             variant="outline"
