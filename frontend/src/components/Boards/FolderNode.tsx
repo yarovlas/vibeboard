@@ -3,11 +3,14 @@ import { Group, Rect, Text } from "react-konva"
 
 import { POSTIT_HEIGHT, POSTIT_WIDTH } from "@/components/Boards/PostItNode"
 
-export const FOLDER_CORNER_RADIUS = 28
-// Counter badge: the same figure as a post-it, at 1/6 of the main size.
+export const FOLDER_CORNER_RADIUS = 20
+// Counter badge: the same figure as a post-it, at 1/6 of the main size,
+// straddling the top-right corner of the folder.
 export const FOLDER_BADGE_WIDTH = Math.round(POSTIT_WIDTH / 6)
 export const FOLDER_BADGE_HEIGHT = Math.round(POSTIT_HEIGHT / 6)
 export const FOLDER_BADGE_RADIUS = 5
+export const FOLDER_BADGE_X = POSTIT_WIDTH - 10 - FOLDER_BADGE_WIDTH / 2
+export const FOLDER_BADGE_Y = 10 - FOLDER_BADGE_HEIGHT / 2
 const FOLDER_BADGE_TEXT = "#1F2937"
 const FOLDER_MUTED_TEXT = "#92400E"
 
@@ -69,8 +72,8 @@ export function FolderNode({
         perfectDrawEnabled={false}
       />
       <Rect
-        x={POSTIT_WIDTH - FOLDER_BADGE_WIDTH - 8}
-        y={8}
+        x={FOLDER_BADGE_X}
+        y={FOLDER_BADGE_Y}
         width={FOLDER_BADGE_WIDTH}
         height={FOLDER_BADGE_HEIGHT}
         fill="#FFFFFF"
@@ -83,8 +86,8 @@ export function FolderNode({
         listening={false}
       />
       <Text
-        x={POSTIT_WIDTH - FOLDER_BADGE_WIDTH - 8}
-        y={8 + (FOLDER_BADGE_HEIGHT - 18) / 2}
+        x={FOLDER_BADGE_X}
+        y={FOLDER_BADGE_Y + (FOLDER_BADGE_HEIGHT - 18) / 2}
         width={FOLDER_BADGE_WIDTH}
         height={18}
         align="center"
