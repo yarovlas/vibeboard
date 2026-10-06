@@ -123,6 +123,7 @@ class PostItBase(SQLModel):
     x: float = 0.0
     y: float = 0.0
     color: str = Field(default="#FEF3C7", max_length=32)
+    group_id: uuid.UUID | None = Field(default=None, nullable=True)
 
 
 # Properties to receive on post-it creation
@@ -137,6 +138,7 @@ class PostItUpdate(SQLModel):
     x: float | None = None
     y: float | None = None
     color: str | None = Field(default=None, max_length=32)
+    group_id: uuid.UUID | None = Field(default=None, nullable=True)
 
 
 # Database model, database table inferred from class name
