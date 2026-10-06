@@ -650,12 +650,14 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
     // Fallback for a stale Konva hit graph (e.g. a post-it that was just
     // remounted): a double-click inside a saved post-it edits it instead of
-    // stacking a new draft on top.
+    // stacking a new draft on top. Members hidden inside a folder are
+    // skipped: editing an invisible post-it looks like a broken creation.
     const hit = [...postits]
       .reverse()
       .find(
         (postit) =>
           !postit.id.startsWith("temporary-") &&
+          !collapsedIds.has(postit.id) &&
           pointer.x >= postit.x &&
           pointer.x <= postit.x + POSTIT_WIDTH &&
           pointer.y >= postit.y &&
