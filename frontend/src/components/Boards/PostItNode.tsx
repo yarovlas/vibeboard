@@ -5,7 +5,15 @@ import type { PostItPublic } from "@/client"
 
 export const POSTIT_WIDTH = 220
 export const POSTIT_HEIGHT = 180
-const POSTIT_FILL = "#FEF3C7"
+export const POSTIT_DEFAULT_COLOR = "#FEF3C7"
+export const POSTIT_COLORS = [
+  { name: "yellow", value: "#FEF3C7" },
+  { name: "orange", value: "#FED7AA" },
+  { name: "pink", value: "#FBCFE8" },
+  { name: "blue", value: "#BFDBFE" },
+  { name: "green", value: "#BBF7D0" },
+  { name: "purple", value: "#DDD6FE" },
+] as const
 const POSTIT_TEXT = "#1F2937"
 const POSTIT_MUTED_TEXT = "#92400E"
 
@@ -16,6 +24,7 @@ export type BoardPostIt = {
   content: string
   x: number
   y: number
+  color: string
 }
 
 export function normalizePostIt(postit: PostItPublic): BoardPostIt {
@@ -26,6 +35,7 @@ export function normalizePostIt(postit: PostItPublic): BoardPostIt {
     content: postit.content ?? "",
     x: postit.x ?? 0,
     y: postit.y ?? 0,
+    color: postit.color ?? POSTIT_DEFAULT_COLOR,
   }
 }
 
@@ -33,8 +43,10 @@ interface PostItNodeProps {
   postit: BoardPostIt
   isEditing: boolean
   isDrawing?: boolean
+  isSelected?: boolean
   onEdit: (postit: BoardPostIt) => void
   onDelete: (postit: BoardPostIt) => void
+  onSelect?: (postit: BoardPostIt, additive: boolean) => void
   onDragEnd?: (postit: BoardPostIt, position: { x: number; y: number }) => void
   dragBoundFunc?: (position: { x: number; y: number }) => {
     x: number
@@ -46,8 +58,10 @@ export function PostItNode({
   postit,
   isEditing,
   isDrawing = false,
+  isSelected = false,
   onEdit,
   onDelete,
+  onSelect,
   onDragEnd,
   dragBoundFunc,
 }: PostItNodeProps) {
@@ -58,6 +72,16 @@ export function PostItNode({
   const handleDoubleClick = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
     onEdit(postit)
+  }
+
+  const handleClick = (event: KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true
+    onSelect?.(postit, Boolean(event.evt.shiftKey))
+  }
+
+  const handleTap = (event: KonvaEventObject<TouchEvent>) => {
+    event.cancelBubble = true
+    onSelect?.(postit, false)
   }
 
   const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
@@ -72,13 +96,15 @@ export function PostItNode({
       name={`postit-${postit.id}`}
       draggable={!isEditing && !isDrawing}
       dragBoundFunc={dragBoundFunc}
+      onClick={handleClick}
+      onTap={handleTap}
       onDblClick={handleDoubleClick}
       onDragEnd={handleDragEnd}
     >
       <Rect
         width={POSTIT_WIDTH}
         height={POSTIT_HEIGHT}
-        fill={POSTIT_FILL}
+        fill={postit.color || POSTIT_DEFAULT_COLOR}
         cornerRadius={10}
         shadowColor="#92400E"
         shadowBlur={12}
@@ -86,6 +112,17 @@ export function PostItNode({
         shadowOffsetY={4}
         perfectDrawEnabled={false}
       />
+      {isSelected && (
+        <Rect
+          width={POSTIT_WIDTH}
+          height={POSTIT_HEIGHT}
+          cornerRadius={10}
+          fillEnabled={false}
+          stroke="#2563EB"
+          strokeWidth={3}
+          listening={false}
+        />
+      )}
       {!isEditing && (
         <Text
           x={16}

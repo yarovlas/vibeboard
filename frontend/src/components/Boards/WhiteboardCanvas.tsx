@@ -12,6 +12,8 @@ import { PostitsService, StrokesService } from "@/client"
 import {
   type BoardPostIt,
   normalizePostIt,
+  POSTIT_COLORS,
+  POSTIT_DEFAULT_COLOR,
   POSTIT_HEIGHT,
   POSTIT_WIDTH,
   PostItNode,
@@ -112,6 +114,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
     null,
   )
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current
@@ -148,6 +151,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           content: draft.content,
           x: draft.x,
           y: draft.y,
+          color: draft.color,
         },
         path: { board_id: boardId },
       }),
@@ -183,6 +187,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           content: draft.content,
           x: draft.x,
           y: draft.y,
+          color: draft.color,
         },
         path: { board_id: boardId, id: draft.id },
       }),
@@ -222,6 +227,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         getPostitsQueryKey(boardId),
         (current) => current?.filter((postit) => postit.id !== postitId),
       )
+      setSelectedIds((current) => current.filter((id) => id !== postitId))
       void queryClient.invalidateQueries({
         queryKey: ["boards", "detail", boardId],
       })
@@ -333,6 +339,38 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     )
   }
 
+  const selectPostIt = (postit: BoardPostIt, additive: boolean) => {
+    if (postit.id.startsWith("temporary-")) return
+    setSelectedIds((current) => {
+      if (additive) {
+        return current.includes(postit.id)
+          ? current.filter((id) => id !== postit.id)
+          : [...current, postit.id]
+      }
+      return [postit.id]
+    })
+  }
+
+  const recolorSelected = (color: string) => {
+    const targets = postits.filter(
+      (postit) =>
+        selectedIds.includes(postit.id) &&
+        !postit.id.startsWith("temporary-") &&
+        postit.color !== color,
+    )
+    if (targets.length === 0) return
+    queryClient.setQueryData<BoardPostIt[]>(
+      getPostitsQueryKey(boardId),
+      (current) =>
+        current?.map((postit) =>
+          selectedIds.includes(postit.id) ? { ...postit, color } : postit,
+        ),
+    )
+    for (const target of targets) {
+      updateMutation.mutate({ ...target, color })
+    }
+  }
+
   const movePostIt = (
     postit: BoardPostIt,
     position: { x: number; y: number },
@@ -362,6 +400,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       content: "",
       x: clampPosition(position, canvasSize).x,
       y: clampPosition(position, canvasSize).y,
+      color: POSTIT_DEFAULT_COLOR,
     }
     queryClient.setQueryData<BoardPostIt[]>(
       getPostitsQueryKey(boardId),
@@ -494,9 +533,28 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         <p className="text-sm text-muted-foreground">
           {isDrawing
             ? "Draw on the canvas. Switch drawing off to move post-its again."
-            : "Double-click the canvas to add a post-it."}
+            : "Double-click the canvas to add a post-it. Shift-click to select several post-its."}
         </p>
         <div className="flex items-center gap-2">
+          <fieldset
+            className="flex items-center gap-1"
+            aria-label="Post-it color"
+          >
+            <legend className="sr-only">Post-it color</legend>
+            {POSTIT_COLORS.map((swatch) => (
+              <button
+                key={swatch.name}
+                type="button"
+                data-testid={`postit-color-${swatch.name}`}
+                aria-label={`Post-it color ${swatch.name}`}
+                title={`Post-it color ${swatch.name}`}
+                disabled={selectedIds.length === 0}
+                onClick={() => recolorSelected(swatch.value)}
+                className="h-7 w-7 rounded-full border border-black/10 disabled:cursor-not-allowed disabled:opacity-30"
+                style={{ backgroundColor: swatch.value }}
+              />
+            ))}
+          </fieldset>
           <Button
             type="button"
             variant="outline"
@@ -590,6 +648,11 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             onTouchStart={handlePointerDown}
             onTouchMove={handlePointerMove}
             onTouchEnd={finishStroke}
+            onClick={(event) => {
+              if (event.target === event.target.getStage()) {
+                setSelectedIds([])
+              }
+            }}
           >
             <Layer listening={!isDrawing}>
               {postits.map((postit) =>
@@ -599,11 +662,13 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     postit={postit}
                     isEditing={false}
                     isDrawing={isDrawing}
+                    isSelected={selectedIds.includes(postit.id)}
                     onEdit={(p) => {
                       handledIds.current.delete(p.id)
                       setEditingId(p.id)
                     }}
                     onDelete={(p) => setDeleteCandidate(p)}
+                    onSelect={(p, additive) => selectPostIt(p, additive)}
                     onDragEnd={(p, position) => movePostIt(p, position)}
                     dragBoundFunc={(position) =>
                       clampPosition(position, canvasSize)
@@ -647,7 +712,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           <textarea
             ref={editorRef}
             aria-label="Post-it text"
-            className="absolute z-10 resize-none rounded-[10px] border border-amber-300 bg-[#FEF3C7] p-4 text-sm leading-relaxed text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
+            className="absolute z-10 resize-none rounded-[10px] border border-amber-300 p-4 text-sm leading-relaxed text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
             data-testid="post-it-editor"
             placeholder="Write a thought..."
             spellCheck
@@ -656,6 +721,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
               top: editingPostIt.y,
               width: POSTIT_WIDTH - 16,
               height: POSTIT_HEIGHT - 16,
+              backgroundColor: editingPostIt.color || POSTIT_DEFAULT_COLOR,
             }}
             value={editingPostIt.content}
             onBlur={() => commitDraft(editingPostIt)}
