@@ -2,6 +2,7 @@ import type { KonvaEventObject } from "konva/lib/Node"
 import { Group, Rect, Text } from "react-konva"
 
 import { POSTIT_HEIGHT, POSTIT_WIDTH } from "@/components/Boards/PostItNode"
+import { useMountAnimation } from "@/hooks/useMountAnimation"
 
 export const FOLDER_CORNER_RADIUS = 20
 // Counter badge: the same figure as a post-it, at 1/6 of the main size,
@@ -19,6 +20,8 @@ interface FolderNodeProps {
   y: number
   color: string
   count: number
+  /** Seconds to wait before playing, for staggered entrances. */
+  enterDelay?: number
   onExpand: () => void
   onDelete: () => void
 }
@@ -28,9 +31,11 @@ export function FolderNode({
   y,
   color,
   count,
+  enterDelay = 0,
   onExpand,
   onDelete,
 }: FolderNodeProps) {
+  const groupRef = useMountAnimation({ delay: enterDelay })
   const handleClick = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
     onExpand()
@@ -43,6 +48,7 @@ export function FolderNode({
 
   return (
     <Group
+      ref={groupRef}
       x={x}
       y={y}
       name={`folder-${color}`}

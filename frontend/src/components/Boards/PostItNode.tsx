@@ -2,6 +2,7 @@ import type { KonvaEventObject } from "konva/lib/Node"
 import { Group, Rect, Text } from "react-konva"
 
 import type { PostItPublic } from "@/client"
+import { useMountAnimation } from "@/hooks/useMountAnimation"
 
 export const POSTIT_WIDTH = 220
 export const POSTIT_HEIGHT = 180
@@ -65,6 +66,9 @@ export function PostItNode({
   onDragEnd,
   dragBoundFunc,
 }: PostItNodeProps) {
+  // Subtle fade so appearing (e.g. expanding a folder) feels smooth.
+  const groupRef = useMountAnimation({ fromScale: 1, duration: 0.18 })
+
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
     : postit.content
@@ -91,6 +95,7 @@ export function PostItNode({
 
   return (
     <Group
+      ref={groupRef}
       x={postit.x}
       y={postit.y}
       name={`postit-${postit.id}`}

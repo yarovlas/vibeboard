@@ -936,13 +936,14 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             }}
           >
             <Layer listening={!isDrawing}>
-              {folders.map((folder) => (
+              {folders.map((folder, index) => (
                 <FolderNode
                   key={`folder-${folder.color}`}
                   x={folder.x}
                   y={folder.y}
                   color={folder.color}
                   count={folder.members.length}
+                  enterDelay={index * 0.06}
                   onExpand={() => expandFolder(folder.color)}
                   onDelete={() =>
                     setFolderDeleteCandidate({
