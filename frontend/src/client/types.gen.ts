@@ -38,6 +38,10 @@ export type BoardPublic = {
      * Updated At
      */
     updated_at?: string | null;
+    /**
+     * Collapsed Colors
+     */
+    collapsed_colors?: Array<string>;
 };
 
 /**
@@ -48,6 +52,10 @@ export type BoardUpdate = {
      * Name
      */
     name?: string | null;
+    /**
+     * Collapsed Colors
+     */
+    collapsed_colors?: Array<string> | null;
 };
 
 /**
@@ -126,6 +134,24 @@ export type NewPassword = {
      * New Password
      */
     new_password: string;
+};
+
+/**
+ * PostItBulkUpdate
+ */
+export type PostItBulkUpdate = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * X
+     */
+    x?: number | null;
+    /**
+     * Y
+     */
+    y?: number | null;
 };
 
 /**
@@ -1100,6 +1126,41 @@ export type postitsCreatePostitResponses = {
 };
 
 export type postitsCreatePostitResponse = postitsCreatePostitResponses[keyof postitsCreatePostitResponses];
+
+export type postitsUpdatePostitsBulkData = {
+    /**
+     * Postits In
+     */
+    body: Array<PostItBulkUpdate>;
+    path: {
+        /**
+         * Board Id
+         */
+        board_id: string;
+    };
+    query?: never;
+    url: '/api/v1/boards/{board_id}/postits/bulk';
+};
+
+export type postitsUpdatePostitsBulkErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type postitsUpdatePostitsBulkError = postitsUpdatePostitsBulkErrors[keyof postitsUpdatePostitsBulkErrors];
+
+export type postitsUpdatePostitsBulkResponses = {
+    /**
+     * Response Postits-Update Postits Bulk
+     *
+     * Successful Response
+     */
+    200: Array<PostItPublic>;
+};
+
+export type postitsUpdatePostitsBulkResponse = postitsUpdatePostitsBulkResponses[keyof postitsUpdatePostitsBulkResponses];
 
 export type postitsDeletePostitData = {
     body?: never;
