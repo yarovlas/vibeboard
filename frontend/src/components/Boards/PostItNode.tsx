@@ -67,7 +67,7 @@ export function PostItNode({
   dragBoundFunc,
 }: PostItNodeProps) {
   // Subtle fade so appearing (e.g. expanding a folder) feels smooth.
-  const groupRef = useMountAnimation({ fromScale: 1, duration: 0.18 })
+  const groupRef = useMountAnimation({ duration: 0.18 })
 
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
