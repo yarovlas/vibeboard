@@ -460,6 +460,49 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (postit.id === editingId) return
     const clamped = clampPosition(position, canvasSize)
     if (clamped.x === postit.x && clamped.y === postit.y) return
+    if (postit.group_id !== null) {
+      const deltaX = clamped.x - postit.x
+      const deltaY = clamped.y - postit.y
+      const members = postits.filter(
+        (item) =>
+          item.group_id !== null &&
+          item.group_id === postit.group_id &&
+          !item.id.startsWith("temporary-") &&
+          item.id !== editingId,
+      )
+      if (members.length < 2) {
+        const moved: BoardPostIt = { ...postit, x: clamped.x, y: clamped.y }
+        queryClient.setQueryData<BoardPostIt[]>(
+          getPostitsQueryKey(boardId),
+          (current) =>
+            current?.map((item) => (item.id === moved.id ? moved : item)),
+        )
+        updateMutation.mutate(moved)
+        return
+      }
+      const movedMembers = members.map((member) => {
+        const next = clampPosition(
+          { x: member.x + deltaX, y: member.y + deltaY },
+          canvasSize,
+        )
+        return { ...member, ...next }
+      })
+      const movedById = new Map(
+        movedMembers.map((member) => [member.id, member]),
+      )
+      queryClient.setQueryData<BoardPostIt[]>(
+        getPostitsQueryKey(boardId),
+        (current) => current?.map((item) => movedById.get(item.id) ?? item),
+      )
+      bulkMutation.mutate(
+        movedMembers.map((member) => ({
+          id: member.id,
+          x: member.x,
+          y: member.y,
+        })),
+      )
+      return
+    }
     const moved: BoardPostIt = { ...postit, x: clamped.x, y: clamped.y }
     queryClient.setQueryData<BoardPostIt[]>(
       getPostitsQueryKey(boardId),
@@ -615,7 +658,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         <p className="text-sm text-muted-foreground">
           {isDrawing
             ? "Draw on the canvas. Switch drawing off to move post-its again."
-            : "Double-click the canvas to add a post-it."}
+            : "Double-click the canvas to add a post-it. Shift-click to select several post-its."}
         </p>
         <div className="flex items-center gap-2">
           <fieldset
