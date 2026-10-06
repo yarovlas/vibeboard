@@ -12,14 +12,8 @@ interface FolderNodeProps {
   y: number
   color: string
   count: number
-  isDrawing?: boolean
   onExpand: () => void
   onDelete: () => void
-  onDragEnd?: (position: { x: number; y: number }) => void
-  dragBoundFunc?: (position: { x: number; y: number }) => {
-    x: number
-    y: number
-  }
 }
 
 export function FolderNode({
@@ -27,11 +21,8 @@ export function FolderNode({
   y,
   color,
   count,
-  isDrawing = false,
   onExpand,
   onDelete,
-  onDragEnd,
-  dragBoundFunc,
 }: FolderNodeProps) {
   const handleClick = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
@@ -43,21 +34,14 @@ export function FolderNode({
     onExpand()
   }
 
-  const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
-    event.cancelBubble = true
-    onDragEnd?.({ x: event.target.x(), y: event.target.y() })
-  }
-
   return (
     <Group
       x={x}
       y={y}
       name={`folder-${color}`}
-      draggable={!isDrawing}
-      dragBoundFunc={dragBoundFunc}
+      draggable={false}
       onClick={handleClick}
       onTap={handleTap}
-      onDragEnd={handleDragEnd}
     >
       <Rect
         x={7}

@@ -2,7 +2,7 @@
 
 import { type Client, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { boardsCreateBoardData, boardsCreateBoardErrors, boardsCreateBoardResponses, boardsDeleteBoardData, boardsDeleteBoardErrors, boardsDeleteBoardResponses, boardsReadBoardData, boardsReadBoardErrors, boardsReadBoardResponses, boardsReadBoardsData, boardsReadBoardsErrors, boardsReadBoardsResponses, boardsUpdateBoardData, boardsUpdateBoardErrors, boardsUpdateBoardResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, postitsCreatePostitData, postitsCreatePostitErrors, postitsCreatePostitResponses, postitsDeletePostitData, postitsDeletePostitErrors, postitsDeletePostitResponses, postitsReadPostitsData, postitsReadPostitsErrors, postitsReadPostitsResponses, postitsUpdatePostitData, postitsUpdatePostitErrors, postitsUpdatePostitResponses, postitsUpdatePostitsBulkData, postitsUpdatePostitsBulkErrors, postitsUpdatePostitsBulkResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, strokesCreateStrokeData, strokesCreateStrokeErrors, strokesCreateStrokeResponses, strokesCreateStrokesBulkData, strokesCreateStrokesBulkErrors, strokesCreateStrokesBulkResponses, strokesDeleteStrokeData, strokesDeleteStrokeErrors, strokesDeleteStrokeResponses, strokesReadStrokesData, strokesReadStrokesErrors, strokesReadStrokesResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
+import type { boardsCreateBoardData, boardsCreateBoardErrors, boardsCreateBoardResponses, boardsDeleteBoardData, boardsDeleteBoardErrors, boardsDeleteBoardResponses, boardsReadBoardData, boardsReadBoardErrors, boardsReadBoardResponses, boardsReadBoardsData, boardsReadBoardsErrors, boardsReadBoardsResponses, boardsUpdateBoardData, boardsUpdateBoardErrors, boardsUpdateBoardResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordHtmlContentData, loginRecoverPasswordHtmlContentErrors, loginRecoverPasswordHtmlContentResponses, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, loginTestTokenData, loginTestTokenResponses, postitsCreatePostitData, postitsCreatePostitErrors, postitsCreatePostitResponses, postitsDeletePostitData, postitsDeletePostitErrors, postitsDeletePostitResponses, postitsReadPostitsData, postitsReadPostitsErrors, postitsReadPostitsResponses, postitsUpdatePostitData, postitsUpdatePostitErrors, postitsUpdatePostitResponses, privateCreateUserData, privateCreateUserErrors, privateCreateUserResponses, strokesCreateStrokeData, strokesCreateStrokeErrors, strokesCreateStrokeResponses, strokesCreateStrokesBulkData, strokesCreateStrokesBulkErrors, strokesCreateStrokesBulkResponses, strokesDeleteStrokeData, strokesDeleteStrokeErrors, strokesDeleteStrokeResponses, strokesReadStrokesData, strokesReadStrokesErrors, strokesReadStrokesResponses, usersCreateUserData, usersCreateUserErrors, usersCreateUserResponses, usersDeleteUserData, usersDeleteUserErrors, usersDeleteUserMeData, usersDeleteUserMeResponses, usersDeleteUserResponses, usersReadUserByIdData, usersReadUserByIdErrors, usersReadUserByIdResponses, usersReadUserMeData, usersReadUserMeResponses, usersReadUsersData, usersReadUsersErrors, usersReadUsersResponses, usersRegisterUserData, usersRegisterUserErrors, usersRegisterUserResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserData, usersUpdateUserErrors, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, usersUpdateUserResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsTestEmailData, utilsTestEmailErrors, utilsTestEmailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -389,24 +389,6 @@ export class PostitsService {
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/boards/{board_id}/postits',
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
-        });
-    }
-    
-    /**
-     * Update Postits Bulk
-     *
-     * Update positions of multiple post-its in one request (folder moves).
-     */
-    public static updatePostitsBulk<ThrowOnError extends boolean = true>(options: Options<postitsUpdatePostitsBulkData, ThrowOnError>) {
-        return (options.client ?? client).patch<postitsUpdatePostitsBulkResponses, postitsUpdatePostitsBulkErrors, ThrowOnError>({
-            responseType: 'json',
-            security: [{ scheme: 'bearer', type: 'http' }],
-            url: '/api/v1/boards/{board_id}/postits/bulk',
             ...options,
             headers: {
                 'Content-Type': 'application/json',

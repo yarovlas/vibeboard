@@ -99,6 +99,10 @@ function clampPosition(
   }
 }
 
+const FOLDER_ROW_X = 40
+const FOLDER_ROW_Y = 40
+const FOLDER_GAP = 24
+
 interface WhiteboardCanvasProps {
   boardId: string
 }
@@ -292,32 +296,6 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     },
   })
 
-  const bulkMutation = useMutation({
-    mutationFn: (items: Array<{ id: string; x?: number; y?: number }>) =>
-      PostitsService.updatePostitsBulk({
-        body: items,
-        path: { board_id: boardId },
-      }),
-    onError: (error) => {
-      void queryClient.invalidateQueries({
-        queryKey: getPostitsQueryKey(boardId),
-      })
-      handleError.call(showErrorToast, error)
-    },
-    onSuccess: (response) => {
-      const saved = response.data.map(normalizePostIt)
-      const savedById = new Map(saved.map((postit) => [postit.id, postit]))
-      queryClient.setQueryData<BoardPostIt[]>(
-        getPostitsQueryKey(boardId),
-        (current) =>
-          current?.map((postit) => savedById.get(postit.id) ?? postit),
-      )
-      void queryClient.invalidateQueries({
-        queryKey: ["boards", "detail", boardId],
-      })
-    },
-  })
-
   const deleteStrokeMutation = useMutation({
     mutationFn: (strokeId: string) =>
       StrokesService.deleteStroke({
@@ -396,19 +374,27 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const multiColors = [...membersByColor.entries()]
     .filter(([, members]) => members.length >= 2)
     .map(([color]) => color)
-  const folders = collapsedColors.flatMap((color) => {
+  const folders = collapsedColors.flatMap((color, index) => {
     const members = membersByColor.get(color) ?? []
     if (members.length < 2) return []
-    const centerX =
-      members.reduce((sum, item) => sum + item.x, 0) / members.length
-    const centerY =
-      members.reduce((sum, item) => sum + item.y, 0) / members.length
-    const position = clampPosition(
-      { x: centerX - POSTIT_WIDTH / 2, y: centerY - POSTIT_HEIGHT / 2 },
-      canvasSize,
+    // Folders live in one clean row at the top, independent of where their
+    // members are stored: member positions never change by (un)collapsing.
+    const perRow = Math.max(
+      1,
+      Math.floor(
+        (canvasSize.width - FOLDER_ROW_X) / (POSTIT_WIDTH + FOLDER_GAP),
+      ),
     )
+    const column = index % perRow
+    const row = Math.floor(index / perRow)
     return [
-      { color, members, ids: members.map((item) => item.id), ...position },
+      {
+        color,
+        members,
+        ids: members.map((item) => item.id),
+        x: FOLDER_ROW_X + column * (POSTIT_WIDTH + FOLDER_GAP),
+        y: FOLDER_ROW_Y + row * (POSTIT_HEIGHT + FOLDER_GAP),
+      },
     ]
   })
   const collapsedIds = new Set(folders.flatMap((folder) => folder.ids))
@@ -444,39 +430,6 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
   const expandFolder = (color: string) => {
     setCollapsedColors(collapsedColors.filter((item) => item !== color))
-  }
-
-  const moveFolder = (
-    folder: { color: string; members: BoardPostIt[]; x: number; y: number },
-    position: { x: number; y: number },
-  ) => {
-    const clamped = clampPosition(position, canvasSize)
-    const deltaX = clamped.x - folder.x
-    const deltaY = clamped.y - folder.y
-    if (deltaX === 0 && deltaY === 0) return
-    const members = folder.members.filter(
-      (item) => !item.id.startsWith("temporary-") && item.id !== editingId,
-    )
-    if (members.length === 0) return
-    const movedMembers = members.map((member) => {
-      const next = clampPosition(
-        { x: member.x + deltaX, y: member.y + deltaY },
-        canvasSize,
-      )
-      return { ...member, ...next }
-    })
-    const movedById = new Map(movedMembers.map((member) => [member.id, member]))
-    queryClient.setQueryData<BoardPostIt[]>(
-      getPostitsQueryKey(boardId),
-      (current) => current?.map((item) => movedById.get(item.id) ?? item),
-    )
-    bulkMutation.mutate(
-      movedMembers.map((member) => ({
-        id: member.id,
-        x: member.x,
-        y: member.y,
-      })),
-    )
   }
 
   const removeDraft = (postitId: string) => {
@@ -895,17 +848,12 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                   y={folder.y}
                   color={folder.color}
                   count={folder.members.length}
-                  isDrawing={isDrawing}
                   onExpand={() => expandFolder(folder.color)}
                   onDelete={() =>
                     setFolderDeleteCandidate({
                       color: folder.color,
                       ids: folder.ids,
                     })
-                  }
-                  onDragEnd={(position) => moveFolder(folder, position)}
-                  dragBoundFunc={(position) =>
-                    clampPosition(position, canvasSize)
                   }
                 />
               ))}
