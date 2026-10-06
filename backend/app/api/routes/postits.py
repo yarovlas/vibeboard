@@ -5,7 +5,15 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Board, Message, PostIt, PostItCreate, PostItPublic, PostItUpdate
+from app.models import (
+    Board,
+    Message,
+    PostIt,
+    PostItBulkUpdate,
+    PostItCreate,
+    PostItPublic,
+    PostItUpdate,
+)
 
 router = APIRouter(prefix="/boards", tags=["postits"])
 
@@ -51,6 +59,36 @@ def create_postit(
     session.commit()
     session.refresh(postit)
     return PostItPublic.model_validate(postit)
+
+
+@router.patch("/{board_id}/postits/bulk", response_model=list[PostItPublic])
+def update_postits_bulk(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    board_id: uuid.UUID,
+    postits_in: list[PostItBulkUpdate],
+) -> list[PostItPublic]:
+    """Update multiple post-its in one request (group moves, grouping)."""
+    board = get_owned_board(
+        session=session, current_user=current_user, board_id=board_id
+    )
+    updated: list[PostIt] = []
+    for item in postits_in:
+        postit = session.get(PostIt, item.id)
+        if not postit:
+            raise HTTPException(status_code=404, detail="Post-it not found")
+        if postit.board_id != board_id:
+            raise HTTPException(status_code=403, detail="Not enough permissions")
+        update_dict = item.model_dump(exclude_unset=True, exclude={"id"})
+        postit.sqlmodel_update(update_dict)
+        session.add(postit)
+        updated.append(postit)
+    board.updated_at = datetime.now(UTC)
+    session.commit()
+    for postit in updated:
+        session.refresh(postit)
+    return [PostItPublic.model_validate(postit) for postit in updated]
 
 
 @router.patch("/{board_id}/postits/{id}", response_model=PostItPublic)

@@ -156,6 +156,17 @@ class PostItPublic(PostItBase):
     board_id: uuid.UUID
 
 
+# Properties to receive on bulk post-it update (group moves, grouping)
+class PostItBulkUpdate(SQLModel):
+    id: uuid.UUID
+    title: str | None = Field(default=None, max_length=255)
+    content: str | None = Field(default=None, max_length=10_000)
+    x: float | None = None
+    y: float | None = None
+    color: str | None = Field(default=None, max_length=32)
+    group_id: uuid.UUID | None = Field(default=None, nullable=True)
+
+
 # Shared properties for strokes (freehand drawings)
 class StrokeBase(SQLModel):
     points: list[float] = Field(min_length=4)
