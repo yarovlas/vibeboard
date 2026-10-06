@@ -593,7 +593,15 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     for (const target of targets) {
       clearAutoCollapse(target.color)
     }
-    ensureExpanded(color)
+    // A draft being created is not hidden anywhere yet, so recoloring it
+    // must not expand anything; saved post-its would vanish into the
+    // folder, so their color expands instead.
+    if (
+      targets.length > 0 ||
+      (editingDraft && !editingDraft.id.startsWith("temporary-"))
+    ) {
+      ensureExpanded(color)
+    }
   }
 
   const movePostIt = (
