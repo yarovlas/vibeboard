@@ -220,3 +220,63 @@ def test_delete_board_not_enough_permissions(
     assert response.status_code == 403
     content = response.json()
     assert content["detail"] == "Not enough permissions"
+
+
+def test_board_collapsed_colors_default_empty(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    response = client.post(
+        f"{settings.API_V1_STR}/boards/",
+        headers=first_user_token_headers,
+        json={"name": "Folder board"},
+    )
+    assert response.status_code == 200
+    assert response.json()["collapsed_colors"] == []
+
+
+def test_update_board_collapsed_colors(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/",
+        headers=first_user_token_headers,
+        json={"name": "Folder board"},
+    )
+    assert created.status_code == 200
+    board_id = created.json()["id"]
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}",
+        headers=first_user_token_headers,
+        json={"collapsed_colors": ["#FBCFE8", "#BFDBFE"]},
+    )
+    assert response.status_code == 200
+    assert response.json()["collapsed_colors"] == ["#FBCFE8", "#BFDBFE"]
+
+    read = client.get(
+        f"{settings.API_V1_STR}/boards/{board_id}",
+        headers=first_user_token_headers,
+    )
+    assert read.status_code == 200
+    assert read.json()["collapsed_colors"] == ["#FBCFE8", "#BFDBFE"]
+
+    cleared = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}",
+        headers=first_user_token_headers,
+        json={"collapsed_colors": []},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["collapsed_colors"] == []
+
+
+def test_update_board_collapsed_colors_not_enough_permissions(
+    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
+) -> None:
+    board = create_random_board(db)
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board.id}",
+        headers=normal_user_token_headers,
+        json={"collapsed_colors": ["#FBCFE8"]},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Not enough permissions"
