@@ -160,6 +160,13 @@ class PostItPublic(PostItBase):
     board_id: uuid.UUID
 
 
+# Properties to receive on bulk post-it position update (folder moves)
+class PostItBulkUpdate(SQLModel):
+    id: uuid.UUID
+    x: float | None = None
+    y: float | None = None
+
+
 # Shared properties for strokes (freehand drawings)
 class StrokeBase(SQLModel):
     points: list[float] = Field(min_length=4)
