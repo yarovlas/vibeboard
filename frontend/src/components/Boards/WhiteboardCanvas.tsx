@@ -4,11 +4,12 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { KonvaEventObject } from "konva/lib/Node"
-import { Pencil, Plus, Redo2, Undo2 } from "lucide-react"
+import { Group, Pencil, Plus, Redo2, Undo2, Ungroup } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
 
-import { PostitsService, StrokesService } from "@/client"
+import { BoardsService, PostitsService, StrokesService } from "@/client"
+import { FolderNode } from "@/components/Boards/FolderNode"
 import {
   type BoardPostIt,
   normalizePostIt,
@@ -34,6 +35,14 @@ import {
 } from "@/components/ui/dialog"
 import useCustomToast from "@/hooks/useCustomToast"
 import { handleError } from "@/utils"
+
+function getBoardQueryOptions(boardId: string) {
+  return {
+    queryFn: async () =>
+      (await BoardsService.readBoard({ path: { id: boardId } })).data,
+    queryKey: ["boards", "detail", boardId] as const,
+  }
+}
 
 function getPostitsQueryKey(boardId: string) {
   return ["boards", boardId, "postits"] as const
@@ -101,6 +110,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const queryClient = useQueryClient()
   const { showErrorToast } = useCustomToast()
   const { data: postits } = useSuspenseQuery(getPostitsQueryOptions(boardId))
+  const { data: board } = useSuspenseQuery(getBoardQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -114,6 +124,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
     null,
   )
+  const [folderDeleteCandidate, setFolderDeleteCandidate] = useState<{
+    color: string
+    ids: string[]
+  } | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   // Stable React keys for post-its: when a draft is saved, its id changes
   // from temporary to saved. Remounting the Konva node on that change breaks
@@ -258,6 +272,52 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     },
   })
 
+  const boardMutation = useMutation({
+    mutationFn: (collapsedColors: string[]) =>
+      BoardsService.updateBoard({
+        body: { collapsed_colors: collapsedColors },
+        path: { id: boardId },
+      }),
+    onError: (error) => {
+      void queryClient.invalidateQueries({
+        queryKey: getBoardQueryOptions(boardId).queryKey,
+      })
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData(
+        getBoardQueryOptions(boardId).queryKey,
+        response.data,
+      )
+    },
+  })
+
+  const bulkMutation = useMutation({
+    mutationFn: (items: Array<{ id: string; x?: number; y?: number }>) =>
+      PostitsService.updatePostitsBulk({
+        body: items,
+        path: { board_id: boardId },
+      }),
+    onError: (error) => {
+      void queryClient.invalidateQueries({
+        queryKey: getPostitsQueryKey(boardId),
+      })
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: (response) => {
+      const saved = response.data.map(normalizePostIt)
+      const savedById = new Map(saved.map((postit) => [postit.id, postit]))
+      queryClient.setQueryData<BoardPostIt[]>(
+        getPostitsQueryKey(boardId),
+        (current) =>
+          current?.map((postit) => savedById.get(postit.id) ?? postit),
+      )
+      void queryClient.invalidateQueries({
+        queryKey: ["boards", "detail", boardId],
+      })
+    },
+  })
+
   const deleteStrokeMutation = useMutation({
     mutationFn: (strokeId: string) =>
       StrokesService.deleteStroke({
@@ -319,6 +379,105 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   })
 
   const editingPostIt = postits.find((postit) => postit.id === editingId)
+
+  const collapsedColors = board.collapsed_colors ?? []
+  const savedPostits = postits.filter(
+    (postit) => !postit.id.startsWith("temporary-"),
+  )
+  const membersByColor = new Map<string, BoardPostIt[]>()
+  for (const postit of savedPostits) {
+    const members = membersByColor.get(postit.color)
+    if (members) {
+      members.push(postit)
+    } else {
+      membersByColor.set(postit.color, [postit])
+    }
+  }
+  const multiColors = [...membersByColor.entries()]
+    .filter(([, members]) => members.length >= 2)
+    .map(([color]) => color)
+  const folders = collapsedColors.flatMap((color) => {
+    const members = membersByColor.get(color) ?? []
+    if (members.length < 2) return []
+    const centerX =
+      members.reduce((sum, item) => sum + item.x, 0) / members.length
+    const centerY =
+      members.reduce((sum, item) => sum + item.y, 0) / members.length
+    const position = clampPosition(
+      { x: centerX - POSTIT_WIDTH / 2, y: centerY - POSTIT_HEIGHT / 2 },
+      canvasSize,
+    )
+    return [
+      { color, members, ids: members.map((item) => item.id), ...position },
+    ]
+  })
+  const collapsedIds = new Set(folders.flatMap((folder) => folder.ids))
+  const visiblePostits = postits.filter(
+    (postit) => !collapsedIds.has(postit.id),
+  )
+
+  const setCollapsedColors = (colors: string[]) => {
+    queryClient.setQueryData(getBoardQueryOptions(boardId).queryKey, {
+      ...board,
+      collapsed_colors: colors,
+    })
+    setSelectedIds([])
+    boardMutation.mutate(colors)
+  }
+
+  const collapseAll = () => {
+    if (editingPostIt && !handledIds.current.has(editingPostIt.id)) {
+      commitDraft(editingPostIt)
+    }
+    const next = [...collapsedColors]
+    for (const color of multiColors) {
+      if (!next.includes(color)) next.push(color)
+    }
+    if (next.length === collapsedColors.length) return
+    setCollapsedColors(next)
+  }
+
+  const expandAll = () => {
+    if (collapsedColors.length === 0) return
+    setCollapsedColors([])
+  }
+
+  const expandFolder = (color: string) => {
+    setCollapsedColors(collapsedColors.filter((item) => item !== color))
+  }
+
+  const moveFolder = (
+    folder: { color: string; members: BoardPostIt[]; x: number; y: number },
+    position: { x: number; y: number },
+  ) => {
+    const clamped = clampPosition(position, canvasSize)
+    const deltaX = clamped.x - folder.x
+    const deltaY = clamped.y - folder.y
+    if (deltaX === 0 && deltaY === 0) return
+    const members = folder.members.filter(
+      (item) => !item.id.startsWith("temporary-") && item.id !== editingId,
+    )
+    if (members.length === 0) return
+    const movedMembers = members.map((member) => {
+      const next = clampPosition(
+        { x: member.x + deltaX, y: member.y + deltaY },
+        canvasSize,
+      )
+      return { ...member, ...next }
+    })
+    const movedById = new Map(movedMembers.map((member) => [member.id, member]))
+    queryClient.setQueryData<BoardPostIt[]>(
+      getPostitsQueryKey(boardId),
+      (current) => current?.map((item) => movedById.get(item.id) ?? item),
+    )
+    bulkMutation.mutate(
+      movedMembers.map((member) => ({
+        id: member.id,
+        x: member.x,
+        y: member.y,
+      })),
+    )
+  }
 
   const removeDraft = (postitId: string) => {
     queryClient.setQueryData<BoardPostIt[]>(
@@ -581,7 +740,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         <p className="text-sm text-muted-foreground">
           {isDrawing
             ? "Draw on the canvas. Switch drawing off to move post-its again."
-            : "Double-click the canvas to add a post-it. Shift-click to select several post-its."}
+            : "Double-click the canvas to add a post-it. Shift-click to select several post-its. Group bundles colors into folders."}
         </p>
         <div className="flex items-center gap-2">
           <fieldset
@@ -603,6 +762,32 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
               />
             ))}
           </fieldset>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={collapseAll}
+            disabled={multiColors.every((color) =>
+              collapsedColors.includes(color),
+            )}
+            data-testid="group-postits"
+            aria-label="Group post-its by color"
+            title="Group post-its by color"
+          >
+            <Group />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={expandAll}
+            disabled={collapsedColors.length === 0}
+            data-testid="ungroup-postits"
+            aria-label="Ungroup post-its"
+            title="Ungroup post-its"
+          >
+            <Ungroup />
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -703,7 +888,28 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             }}
           >
             <Layer listening={!isDrawing}>
-              {postits.map((postit) =>
+              {folders.map((folder) => (
+                <FolderNode
+                  key={`folder-${folder.color}`}
+                  x={folder.x}
+                  y={folder.y}
+                  color={folder.color}
+                  count={folder.members.length}
+                  isDrawing={isDrawing}
+                  onExpand={() => expandFolder(folder.color)}
+                  onDelete={() =>
+                    setFolderDeleteCandidate({
+                      color: folder.color,
+                      ids: folder.ids,
+                    })
+                  }
+                  onDragEnd={(position) => moveFolder(folder, position)}
+                  dragBoundFunc={(position) =>
+                    clampPosition(position, canvasSize)
+                  }
+                />
+              ))}
+              {visiblePostits.map((postit) =>
                 postit.id === editingId ? null : (
                   <PostItNode
                     key={getPostItKey(postit)}
@@ -803,6 +1009,14 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           ))}
         </ul>
 
+        <ul className="sr-only" aria-label="Post-it folders on this whiteboard">
+          {folders.map((folder) => (
+            <li key={`folder-${folder.color}`}>
+              {`Map met ${folder.members.length} post-its`}
+            </li>
+          ))}
+        </ul>
+
         <Dialog
           open={deleteCandidate !== null}
           onOpenChange={(open) => {
@@ -830,6 +1044,47 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                   if (deleteCandidate) {
                     deleteMutation.mutate(deleteCandidate.id)
                     setDeleteCandidate(null)
+                  }
+                }}
+              >
+                Verwijderen
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={folderDeleteCandidate !== null}
+          onOpenChange={(open) => {
+            if (!open) setFolderDeleteCandidate(null)
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Map verwijderen</DialogTitle>
+              <DialogDescription>
+                {`Weet je zeker dat je deze map met ${folderDeleteCandidate?.ids.length ?? 0} post-its wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.`}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setFolderDeleteCandidate(null)}
+              >
+                Annuleren
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (folderDeleteCandidate) {
+                    for (const id of folderDeleteCandidate.ids) {
+                      deleteMutation.mutate(id)
+                    }
+                    setCollapsedColors(
+                      collapsedColors.filter(
+                        (color) => color !== folderDeleteCandidate.color,
+                      ),
+                    )
+                    setFolderDeleteCandidate(null)
                   }
                 }}
               >
