@@ -148,6 +148,10 @@ export type PostItCreate = {
      * Y
      */
     y?: number;
+    /**
+     * Color
+     */
+    color?: string;
 };
 
 /**
@@ -170,6 +174,10 @@ export type PostItPublic = {
      * Y
      */
     y?: number;
+    /**
+     * Color
+     */
+    color?: string;
     /**
      * Id
      */
@@ -200,6 +208,10 @@ export type PostItUpdate = {
      * Y
      */
     y?: number | null;
+    /**
+     * Color
+     */
+    color?: string | null;
 };
 
 /**
