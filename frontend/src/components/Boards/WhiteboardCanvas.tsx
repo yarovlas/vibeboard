@@ -7,7 +7,7 @@ import type { KonvaEventObject } from "konva/lib/Node"
 import { Group, Pencil, Plus, Redo2, Undo2, Ungroup } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
-
+import type { BoardPublic } from "@/client"
 import { BoardsService, PostitsService, StrokesService } from "@/client"
 import { FolderNode } from "@/components/Boards/FolderNode"
 import {
@@ -102,6 +102,7 @@ function clampPosition(
 const FOLDER_ROW_X = 40
 const FOLDER_ROW_Y = 40
 const FOLDER_GAP = 24
+const FOLDER_AUTO_COLLAPSE_MS = 10_000
 
 interface WhiteboardCanvasProps {
   boardId: string
@@ -132,6 +133,25 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     color: string
     ids: string[]
   } | null>(null)
+  // Colors expanded by clicking a folder collapse back automatically when
+  // none of their post-its are touched before the timer runs out.
+  const autoCollapseTimers = useRef(new Map<string, number>())
+  const timerBoardId = useRef(boardId)
+  if (timerBoardId.current !== boardId) {
+    timerBoardId.current = boardId
+    for (const timer of autoCollapseTimers.current.values()) {
+      clearTimeout(timer)
+    }
+    autoCollapseTimers.current.clear()
+  }
+
+  useEffect(() => {
+    const timers = autoCollapseTimers.current
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer)
+      timers.clear()
+    }
+  }, [])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   // Stable React keys for post-its: when a draft is saved, its id changes
   // from temporary to saved. Remounting the Konva node on that change breaks
@@ -403,16 +423,51 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     (postit) => !collapsedIds.has(postit.id),
   )
 
-  const setCollapsedColors = (colors: string[]) => {
-    queryClient.setQueryData(getBoardQueryOptions(boardId).queryKey, {
-      ...board,
-      collapsed_colors: colors,
-    })
-    setSelectedIds([])
+  const setCollapsedColors = (
+    colors: string[],
+    options?: { keepSelection?: boolean },
+  ) => {
+    queryClient.setQueryData<BoardPublic>(
+      getBoardQueryOptions(boardId).queryKey,
+      (current) =>
+        current ? { ...current, collapsed_colors: colors } : current,
+    )
+    if (!options?.keepSelection) setSelectedIds([])
     boardMutation.mutate(colors)
   }
 
+  const clearAutoCollapse = (color?: string) => {
+    if (color !== undefined) {
+      const timer = autoCollapseTimers.current.get(color)
+      if (timer !== undefined) {
+        clearTimeout(timer)
+        autoCollapseTimers.current.delete(color)
+      }
+      return
+    }
+    for (const timer of autoCollapseTimers.current.values()) {
+      clearTimeout(timer)
+    }
+    autoCollapseTimers.current.clear()
+  }
+
+  const armAutoCollapse = (color: string) => {
+    clearAutoCollapse(color)
+    const timer = window.setTimeout(() => {
+      autoCollapseTimers.current.delete(color)
+      const current =
+        queryClient.getQueryData<BoardPublic>(
+          getBoardQueryOptions(boardId).queryKey,
+        )?.collapsed_colors ?? []
+      if (!current.includes(color)) {
+        setCollapsedColors([...current, color], { keepSelection: true })
+      }
+    }, FOLDER_AUTO_COLLAPSE_MS)
+    autoCollapseTimers.current.set(color, timer)
+  }
+
   const collapseAll = () => {
+    clearAutoCollapse()
     if (editingPostIt && !handledIds.current.has(editingPostIt.id)) {
       commitDraft(editingPostIt)
     }
@@ -426,11 +481,13 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
   const expandAll = () => {
     if (collapsedColors.length === 0) return
+    clearAutoCollapse()
     setCollapsedColors([])
   }
 
   const expandFolder = (color: string) => {
     setCollapsedColors(collapsedColors.filter((item) => item !== color))
+    armAutoCollapse(color)
   }
 
   const ensureExpanded = (color: string) => {
@@ -449,6 +506,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }
 
   const commitDraft = (draft: BoardPostIt) => {
+    clearAutoCollapse(draft.color)
     if (handledIds.current.has(draft.id)) return
     handledIds.current.add(draft.id)
     setEditingId((current) => (current === draft.id ? null : current))
@@ -485,6 +543,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }
 
   const selectPostIt = (postit: BoardPostIt, additive: boolean) => {
+    clearAutoCollapse(postit.color)
     // Temporary ids are fine: they migrate to the saved id when the
     // create request succeeds, so a selection made mid-save is kept.
     setSelectedIds((current) => {
@@ -530,6 +589,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (editingDraft && !editingDraft.id.startsWith("temporary-")) {
       updateMutation.mutate({ ...editingDraft, color })
     }
+    clearAutoCollapse(color)
+    for (const target of targets) {
+      clearAutoCollapse(target.color)
+    }
     ensureExpanded(color)
   }
 
@@ -539,6 +602,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   ) => {
     if (postit.id.startsWith("temporary-")) return
     if (postit.id === editingId) return
+    clearAutoCollapse(postit.color)
     const clamped = clampPosition(position, canvasSize)
     if (clamped.x === postit.x && clamped.y === postit.y) return
     const moved: BoardPostIt = { ...postit, x: clamped.x, y: clamped.y }
@@ -1053,6 +1117,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                 variant="destructive"
                 onClick={() => {
                   if (folderDeleteCandidate) {
+                    clearAutoCollapse(folderDeleteCandidate.color)
                     for (const id of folderDeleteCandidate.ids) {
                       deleteMutation.mutate(id)
                     }
