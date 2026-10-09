@@ -43,3 +43,6 @@ export function useMountAnimation({
 
   return ref
 }
+
+/** Clearer alias for the fade-in mount animation. */
+export const useFadeIn = useMountAnimation

@@ -21,9 +21,14 @@ import {
 } from "@/components/ui/form"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
-import { isLoggedIn } from "@/hooks/useAuth"
+
 import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
+import { handleError } from "@/lib/errors"
+import {
+  confirmPasswordSchema,
+  passwordSchema,
+  requireGuest,
+} from "@/lib/validation"
 
 const searchSchema = z.object({
   token: z.string().catch(""),
@@ -31,13 +36,8 @@ const searchSchema = z.object({
 
 const formSchema = z
   .object({
-    new_password: z
-      .string()
-      .min(1, { message: "Password is required" })
-      .min(8, { message: "Password must be at least 8 characters" }),
-    confirm_password: z
-      .string()
-      .min(1, { message: "Password confirmation is required" }),
+    new_password: passwordSchema,
+    confirm_password: confirmPasswordSchema,
   })
   .refine((data) => data.new_password === data.confirm_password, {
     message: "The passwords don't match",
@@ -50,9 +50,7 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPassword,
   validateSearch: searchSchema,
   beforeLoad: async ({ search }) => {
-    if (isLoggedIn()) {
-      throw redirect({ to: "/" })
-    }
+    await requireGuest()
     if (!search.token) {
       throw redirect({ to: "/login" })
     }
@@ -89,7 +87,7 @@ function ResetPassword() {
       form.reset()
       navigate({ to: "/login" })
     },
-    onError: handleError.bind(showErrorToast),
+    onError: (error) => handleError(error, showErrorToast),
   })
 
   const onSubmit = (data: FormData) => {

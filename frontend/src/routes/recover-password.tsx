@@ -1,10 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
-import {
-  createFileRoute,
-  Link as RouterLink,
-  redirect,
-} from "@tanstack/react-router"
+import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
@@ -20,25 +16,20 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
-import { isLoggedIn } from "@/hooks/useAuth"
+
 import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
+import { handleError } from "@/lib/errors"
+import { emailSchema, requireGuest } from "@/lib/validation"
 
 const formSchema = z.object({
-  email: z.email({ message: "Invalid email address" }),
+  email: emailSchema,
 })
 
 type FormData = z.infer<typeof formSchema>
 
 export const Route = createFileRoute("/recover-password")({
   component: RecoverPassword,
-  beforeLoad: async () => {
-    if (isLoggedIn()) {
-      throw redirect({
-        to: "/",
-      })
-    }
-  },
+  beforeLoad: requireGuest,
   head: () => ({
     meta: [
       {
@@ -69,7 +60,7 @@ function RecoverPassword() {
       showSuccessToast("Password recovery email sent successfully")
       form.reset()
     },
-    onError: handleError.bind(showErrorToast),
+    onError: (error) => handleError(error, showErrorToast),
   })
 
   const onSubmit = async (data: FormData) => {

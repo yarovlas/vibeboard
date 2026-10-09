@@ -8,12 +8,9 @@ import {
   type UserRegister,
   UsersService,
 } from "@/client"
-import {
-  clearAccessToken,
-  handleInvalidAccessToken,
-  isLoggedIn,
-} from "@/lib/auth"
-import { handleError } from "@/utils"
+import { clearAccessToken, isLoggedIn } from "@/lib/auth"
+import { handleError } from "@/lib/errors"
+import { queryKeys } from "@/lib/query-keys"
 import useCustomToast from "./useCustomToast"
 
 const useAuth = () => {
@@ -22,7 +19,7 @@ const useAuth = () => {
   const { showErrorToast } = useCustomToast()
 
   const { data: user } = useQuery<UserPublic | null, Error>({
-    queryKey: ["currentUser"],
+    queryKey: queryKeys.users.current,
     queryFn: async () => (await UsersService.readUserMe()).data,
     enabled: isLoggedIn(),
   })
@@ -34,11 +31,10 @@ const useAuth = () => {
       navigate({ to: "/login" })
     },
     onError: (error) => {
-      handleInvalidAccessToken(error)
-      handleError.call(showErrorToast, error)
+      handleError(error, showErrorToast)
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
     },
   })
 
@@ -55,13 +51,13 @@ const useAuth = () => {
       navigate({ to: "/" })
     },
     onError: (error) => {
-      handleInvalidAccessToken(error)
-      handleError.call(showErrorToast, error)
+      handleError(error, showErrorToast)
     },
   })
 
   const logout = () => {
     clearAccessToken()
+    queryClient.invalidateQueries({ queryKey: queryKeys.users.current })
     navigate({ to: "/login" })
   }
 

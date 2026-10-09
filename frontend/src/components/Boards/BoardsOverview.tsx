@@ -23,15 +23,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
-
-function getBoardsQueryOptions() {
-  return {
-    queryFn: async () =>
-      (await BoardsService.readBoards({ query: { skip: 0, limit: 100 } })).data,
-    queryKey: ["boards"],
-  }
-}
+import { getBoardsQueryOptions } from "@/lib/board-queries"
+import { handleError } from "@/lib/errors"
+import { queryKeys } from "@/lib/query-keys"
 
 function CreateBoardButton() {
   const [isOpen, setIsOpen] = useState(false)
@@ -52,9 +46,9 @@ function CreateBoardButton() {
         params: { boardId: response.data.id },
       })
     },
-    onError: handleError.bind(showErrorToast),
+    onError: (error) => handleError(error, showErrorToast),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["boards"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.boards.all })
     },
   })
 
