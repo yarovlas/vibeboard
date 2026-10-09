@@ -101,8 +101,94 @@ function clampPosition(
 
 const FOLDER_ROW_X = 40
 const FOLDER_ROW_Y = 40
-const FOLDER_GAP = 24
+const FOLDER_GAP = 48
 const FOLDER_AUTO_COLLAPSE_MS = 10_000
+
+function dockPerRow(canvasWidth: number) {
+  return Math.max(
+    1,
+    Math.floor((canvasWidth - FOLDER_ROW_X) / (POSTIT_WIDTH + FOLDER_GAP)),
+  )
+}
+
+function dockSlotAt(slot: number, perRow: number) {
+  return {
+    x: FOLDER_ROW_X + (slot % perRow) * (POSTIT_WIDTH + FOLDER_GAP),
+    y: FOLDER_ROW_Y + Math.floor(slot / perRow) * (POSTIT_HEIGHT + FOLDER_GAP),
+  }
+}
+
+// First dock slot whose box keeps a full gap from every taken box.
+function findFreeDockSlot(taken: { x: number; y: number }[], perRow: number) {
+  for (let slot = 0; slot < 500; slot++) {
+    const position = dockSlotAt(slot, perRow)
+    const blocked = taken.some(
+      (box) =>
+        Math.abs(box.x - position.x) < POSTIT_WIDTH + FOLDER_GAP &&
+        Math.abs(box.y - position.y) < POSTIT_HEIGHT + FOLDER_GAP,
+    )
+    if (!blocked) return position
+  }
+  return dockSlotAt(500, perRow)
+}
+
+function FolderNameEditor({
+  initialName,
+  x,
+  y,
+  color,
+  onCommit,
+  onCancel,
+}: {
+  initialName: string
+  x: number
+  y: number
+  color: string
+  onCommit: (name: string) => void
+  onCancel: () => void
+}) {
+  const [name, setName] = useState(initialName)
+  // Escape unmounts the editor, which can fire blur afterwards: finish
+  // exactly once so a cancelled rename never commits.
+  const done = useRef(false)
+  const finish = (commit: boolean) => {
+    if (done.current) return
+    done.current = true
+    if (commit) onCommit(name)
+    else onCancel()
+  }
+  return (
+    <textarea
+      autoFocus
+      aria-label="Folder name"
+      className="absolute z-10 resize-none rounded-[10px] border border-amber-300 p-4 text-center text-lg font-medium text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
+      data-testid="folder-name-editor"
+      placeholder="Name this group..."
+      spellCheck
+      style={{
+        left: x,
+        top: y,
+        width: POSTIT_WIDTH - 16,
+        height: POSTIT_HEIGHT - 16,
+        backgroundColor: color,
+      }}
+      value={name}
+      onBlur={() => finish(true)}
+      onChange={(event) => setName(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault()
+          finish(false)
+          return
+        }
+        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+          event.preventDefault()
+          finish(true)
+        }
+      }}
+    />
+  )
+}
 
 interface WhiteboardCanvasProps {
   boardId: string
@@ -153,6 +239,108 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     }
   }, [])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  // User-moved folder positions, keyed by color. A moved folder stays where
+  // it was dropped (persisted per board) until moved again; every other
+  // folder lives in the dedicated dock row at the top with a constant gap.
+  const folderPositionsKey = `vibeboard:folder-positions:${boardId}`
+  const [folderPositions, setFolderPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >(() => {
+    try {
+      const raw = localStorage.getItem(folderPositionsKey)
+      const parsed: unknown = raw ? JSON.parse(raw) : null
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const positions: Record<string, { x: number; y: number }> = {}
+        for (const [color, value] of Object.entries(
+          parsed as Record<string, unknown>,
+        )) {
+          if (
+            value &&
+            typeof value === "object" &&
+            Number.isFinite((value as { x?: unknown }).x) &&
+            Number.isFinite((value as { y?: unknown }).y)
+          ) {
+            positions[color] = {
+              x: (value as { x: number }).x,
+              y: (value as { y: number }).y,
+            }
+          }
+        }
+        return positions
+      }
+    } catch {
+      // Corrupt storage: folders fall back to their dock slots.
+    }
+    return {}
+  })
+  const writeFolderPositions = (
+    next: Record<string, { x: number; y: number }>,
+  ) => {
+    setFolderPositions(next)
+    try {
+      localStorage.setItem(folderPositionsKey, JSON.stringify(next))
+    } catch {
+      // Storage full or unavailable: moves just don't survive reload.
+    }
+  }
+  // Snapshot of which post-it ids were grouped per color. A folder only ever
+  // shows its snapshot: post-its created (or recolored) afterwards stay
+  // visible next to the folder until the Group button regroups explicitly.
+  const folderMembersKey = `vibeboard:folder-members:${boardId}`
+  const [folderMembers, setFolderMembers] = useState<Record<string, string[]>>(
+    () => {
+      try {
+        const raw = localStorage.getItem(folderMembersKey)
+        const parsed: unknown = raw ? JSON.parse(raw) : null
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parsed as Record<string, string[]>
+        }
+      } catch {
+        // Corrupt storage: start without snapshots (legacy color behavior).
+      }
+      return {}
+    },
+  )
+  const writeFolderMembers = (next: Record<string, string[]>) => {
+    setFolderMembers(next)
+    try {
+      localStorage.setItem(folderMembersKey, JSON.stringify(next))
+    } catch {
+      // Storage full or unavailable: snapshots just don't survive reload.
+    }
+  }
+  // Custom group names, keyed by color. Same local-first trade-off as the
+  // snapshots above: instant and offline-friendly, per browser.
+  const folderNamesKey = `vibeboard:folder-names:${boardId}`
+  const [folderNames, setFolderNames] = useState<Record<string, string>>(() => {
+    try {
+      const raw = localStorage.getItem(folderNamesKey)
+      const parsed: unknown = raw ? JSON.parse(raw) : null
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const names: Record<string, string> = {}
+        for (const [color, value] of Object.entries(
+          parsed as Record<string, unknown>,
+        )) {
+          if (typeof value === "string" && value.trim()) {
+            names[color] = value.slice(0, 120)
+          }
+        }
+        return names
+      }
+    } catch {
+      // Corrupt storage: fall back to member text.
+    }
+    return {}
+  })
+  const writeFolderNames = (next: Record<string, string>) => {
+    setFolderNames(next)
+    try {
+      localStorage.setItem(folderNamesKey, JSON.stringify(next))
+    } catch {
+      // Storage full or unavailable: names just don't survive reload.
+    }
+  }
+  const [renamingColor, setRenamingColor] = useState<string | null>(null)
   // Stable React keys for post-its: when a draft is saved, its id changes
   // from temporary to saved. Remounting the Konva node on that change breaks
   // in-flight mouse sequences and hit-testing, so the key stays put.
@@ -193,6 +381,83 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     setRedoStack([])
   }, [])
 
+  const boardMutation = useMutation({
+    mutationFn: (collapsedColors: string[]) =>
+      BoardsService.updateBoard({
+        body: { collapsed_colors: collapsedColors },
+        path: { id: boardId },
+      }),
+    onError: (error) => {
+      void queryClient.invalidateQueries({
+        queryKey: getBoardQueryOptions(boardId).queryKey,
+      })
+      handleError.call(showErrorToast, error)
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData(
+        getBoardQueryOptions(boardId).queryKey,
+        response.data,
+      )
+    },
+  })
+
+  // Reconciles folder snapshots with fresh post-its after deletes/recolors:
+  // departed members drop out, folders below 2 members ungroup, and ids in
+  // keepOut (just recolored cards) never sneak into a legacy snapshot.
+  // Never pulls cards in — only the Group button does that.
+  const syncFolderSnapshots = (
+    freshPostits: BoardPostIt[],
+    keepOut: Set<string>,
+  ) => {
+    const board = queryClient.getQueryData<BoardPublic>(
+      getBoardQueryOptions(boardId).queryKey,
+    )
+    const collapsed = board?.collapsed_colors ?? []
+    if (collapsed.length === 0) return
+    const byColor = new Map<string, BoardPostIt[]>()
+    for (const postit of freshPostits) {
+      if (postit.id.startsWith("temporary-")) continue
+      const list = byColor.get(postit.color)
+      if (list) list.push(postit)
+      else byColor.set(postit.color, [postit])
+    }
+    const snapshots = { ...folderMembers }
+    let snapshotsChanged = false
+    let nextCollapsed = [...collapsed]
+    let collapsedChanged = false
+    for (const color of collapsed) {
+      const all = (byColor.get(color) ?? []).filter(
+        (postit) => !keepOut.has(postit.id),
+      )
+      const snapshot = snapshots[color]
+      const members = snapshot
+        ? all.filter((postit) => snapshot.includes(postit.id))
+        : all
+      if (members.length < 2) {
+        delete snapshots[color]
+        snapshotsChanged = true
+        nextCollapsed = nextCollapsed.filter((item) => item !== color)
+        collapsedChanged = true
+      } else if (
+        snapshot === undefined ||
+        snapshot.length !== members.length ||
+        snapshot.some((id) => !members.some((postit) => postit.id === id))
+      ) {
+        snapshots[color] = members.map((postit) => postit.id)
+        snapshotsChanged = true
+      }
+    }
+    if (snapshotsChanged) writeFolderMembers(snapshots)
+    if (collapsedChanged) {
+      queryClient.setQueryData<BoardPublic>(
+        getBoardQueryOptions(boardId).queryKey,
+        (current) =>
+          current ? { ...current, collapsed_colors: nextCollapsed } : current,
+      )
+      boardMutation.mutate(nextCollapsed)
+    }
+  }
+
   const mutation = useMutation({
     mutationFn: (draft: BoardPostIt) =>
       PostitsService.createPostit({
@@ -227,7 +492,12 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       setSelectedIds((current) =>
         current.map((id) => (id === draft.id ? savedPostIt.id : id)),
       )
-      // A new post-it silently joins a collapsed color: the folder stays.
+      // A newly created post-it never joins a collapsed folder silently and
+      // never breaks it open: the folder keeps its snapshot, the new card
+      // stays visible next to it. Only the Group button regroups.
+      // Legacy safety net: a collapsed color without a snapshot (grouped
+      // before snapshots existed) freezes to its pre-existing members so
+      // the newcomer still stays out.
       queryClient.setQueryData<BoardPostIt[]>(
         getPostitsQueryKey(boardId),
         (current) =>
@@ -235,6 +505,27 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             postit.id === draft.id ? savedPostIt : postit,
           ),
       )
+      const allPostits =
+        queryClient.getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId)) ??
+        []
+      setFolderMembers((current) => {
+        if (current[savedPostIt.color] !== undefined) return current
+        const members = allPostits.filter(
+          (postit) =>
+            postit.color === savedPostIt.color && postit.id !== savedPostIt.id,
+        )
+        if (members.length < 2) return current
+        const next = {
+          ...current,
+          [savedPostIt.color]: members.map((postit) => postit.id),
+        }
+        try {
+          localStorage.setItem(folderMembersKey, JSON.stringify(next))
+        } catch {
+          // Ignore storage failures; the in-memory snapshot still applies.
+        }
+        return next
+      })
       void queryClient.invalidateQueries({
         queryKey: ["boards", "detail", boardId],
       })
@@ -291,29 +582,15 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       )
       postItKeys.current.delete(postitId)
       setSelectedIds((current) => current.filter((id) => id !== postitId))
+      // A deleted member drops out of its folder snapshot; a folder left
+      // with fewer than 2 members ungroups instead of lingering.
+      const fresh =
+        queryClient.getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId)) ??
+        []
+      syncFolderSnapshots(fresh, new Set())
       void queryClient.invalidateQueries({
         queryKey: ["boards", "detail", boardId],
       })
-    },
-  })
-
-  const boardMutation = useMutation({
-    mutationFn: (collapsedColors: string[]) =>
-      BoardsService.updateBoard({
-        body: { collapsed_colors: collapsedColors },
-        path: { id: boardId },
-      }),
-    onError: (error) => {
-      void queryClient.invalidateQueries({
-        queryKey: getBoardQueryOptions(boardId).queryKey,
-      })
-      handleError.call(showErrorToast, error)
-    },
-    onSuccess: (response) => {
-      queryClient.setQueryData(
-        getBoardQueryOptions(boardId).queryKey,
-        response.data,
-      )
     },
   })
 
@@ -395,33 +672,49 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const multiColors = [...membersByColor.entries()]
     .filter(([, members]) => members.length >= 2)
     .map(([color]) => color)
-  const folders = collapsedColors.flatMap((color, index) => {
-    const members = membersByColor.get(color) ?? []
+  // Visible folders, in collapsed order. A folder shows its Group-time
+  // snapshot, not every post-it of the color: cards created afterwards stay
+  // visible until regrouped. No snapshot yet (legacy board): all members.
+  const visibleFolders = collapsedColors.flatMap((color) => {
+    const all = membersByColor.get(color) ?? []
+    const snapshot = folderMembers[color]
+    const members = snapshot
+      ? all.filter((postit) => snapshot.includes(postit.id))
+      : all
     if (members.length < 2) return []
-    // Folders live in one clean row at the top, independent of where their
-    // members are stored: member positions never change by (un)collapsing.
-    const perRow = Math.max(
-      1,
-      Math.floor(
-        (canvasSize.width - FOLDER_ROW_X) / (POSTIT_WIDTH + FOLDER_GAP),
-      ),
-    )
-    const column = index % perRow
-    const row = Math.floor(index / perRow)
-    return [
-      {
-        color,
-        members,
-        ids: members.map((item) => item.id),
-        x: FOLDER_ROW_X + column * (POSTIT_WIDTH + FOLDER_GAP),
-        y: FOLDER_ROW_Y + row * (POSTIT_HEIGHT + FOLDER_GAP),
-      },
-    ]
+    return [{ color, members, ids: members.map((item) => item.id) }]
   })
+  // Dedicated dock: unmoved folders sit in a clean grid at the top with a
+  // constant gap, compact in visible order. Positions are assigned once at
+  // group time and then never touched — dragging one folder never shifts
+  // the others. Full freedom of movement until the next Group press.
+  const folders = (() => {
+    const perRow = dockPerRow(canvasSize.width)
+    let slot = 0
+    return visibleFolders.map((folder) => {
+      const override = folderPositions[folder.color]
+      if (override) return { ...folder, x: override.x, y: override.y }
+      const position = dockSlotAt(slot, perRow)
+      slot += 1
+      return { ...folder, x: position.x, y: position.y }
+    })
+  })()
   const collapsedIds = new Set(folders.flatMap((folder) => folder.ids))
   const visiblePostits = postits.filter(
     (postit) => !collapsedIds.has(postit.id),
   )
+  // The Group button is enabled whenever grouping would change something:
+  // a new groupable color, or cards that are not yet inside their folder
+  // (created/recolored after grouping, or a legacy board without snapshots).
+  const needsGrouping = multiColors.some((color) => {
+    if (!collapsedColors.includes(color)) return true
+    const snapshot = folderMembers[color]
+    if (!snapshot) return true
+    const ids = (membersByColor.get(color) ?? []).map((postit) => postit.id)
+    return (
+      snapshot.length !== ids.length || ids.some((id) => !snapshot.includes(id))
+    )
+  })
 
   const setCollapsedColors = (
     colors: string[],
@@ -460,7 +753,46 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           getBoardQueryOptions(boardId).queryKey,
         )?.collapsed_colors ?? []
       if (!current.includes(color)) {
-        setCollapsedColors([...current, color], { keepSelection: true })
+        // Recollapse snapshots whoever is currently of that color.
+        const members =
+          queryClient
+            .getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId))
+            ?.filter(
+              (postit) =>
+                postit.color === color && !postit.id.startsWith("temporary-"),
+            ) ?? []
+        if (members.length >= 2) {
+          setFolderMembers((previous) => {
+            const next = {
+              ...previous,
+              [color]: members.map((postit) => postit.id),
+            }
+            try {
+              localStorage.setItem(folderMembersKey, JSON.stringify(next))
+            } catch {
+              // Ignore storage failures.
+            }
+            return next
+          })
+          // The recollapsing folder takes the first free dock slot, like a
+          // manual Group press would.
+          setFolderPositions((previous) => {
+            if (previous[color]) return previous
+            const width = canvasRef.current?.clientWidth || 1024
+            const found = findFreeDockSlot(
+              Object.values(previous),
+              dockPerRow(width),
+            )
+            const next = { ...previous, [color]: found }
+            try {
+              localStorage.setItem(folderPositionsKey, JSON.stringify(next))
+            } catch {
+              // Ignore storage failures.
+            }
+            return next
+          })
+          setCollapsedColors([...current, color], { keepSelection: true })
+        }
       }
     }, FOLDER_AUTO_COLLAPSE_MS)
     autoCollapseTimers.current.set(color, timer)
@@ -471,31 +803,62 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (editingPostIt && !handledIds.current.has(editingPostIt.id)) {
       commitDraft(editingPostIt)
     }
+    // Grouping snapshots every grouped color: newcomers merge into their
+    // folder. This is the only place folders gain members. Colors without
+    // a stored position are placed into the first free dock slot now, so
+    // later drags never reshuffle the others.
     const next = [...collapsedColors]
     for (const color of multiColors) {
       if (!next.includes(color)) next.push(color)
     }
-    if (next.length === collapsedColors.length) return
+    const snapshots: Record<string, string[]> = { ...folderMembers }
+    let snapshotsChanged = false
+    for (const color of multiColors) {
+      const ids = (membersByColor.get(color) ?? []).map((postit) => postit.id)
+      const previous = snapshots[color] ?? []
+      if (
+        previous.length !== ids.length ||
+        previous.some((id) => !ids.includes(id))
+      ) {
+        snapshots[color] = ids
+        snapshotsChanged = true
+      }
+    }
+    if (snapshotsChanged) writeFolderMembers(snapshots)
+    const perRow = dockPerRow(canvasSize.width)
+    const positions = { ...folderPositions }
+    const taken = Object.values(positions)
+    let positionsChanged = false
+    for (const color of next) {
+      if (positions[color]) continue
+      const found = findFreeDockSlot(taken, perRow)
+      positions[color] = found
+      taken.push(found)
+      positionsChanged = true
+    }
+    if (positionsChanged) writeFolderPositions(positions)
+    const colorsChanged =
+      next.length !== collapsedColors.length ||
+      next.some((color) => !collapsedColors.includes(color))
+    if (!colorsChanged) return
     setCollapsedColors(next)
   }
 
   const expandAll = () => {
     if (collapsedColors.length === 0) return
     clearAutoCollapse()
+    const snapshots = { ...folderMembers }
+    for (const color of collapsedColors) delete snapshots[color]
+    writeFolderMembers(snapshots)
     setCollapsedColors([])
   }
 
   const expandFolder = (color: string) => {
+    const snapshots = { ...folderMembers }
+    delete snapshots[color]
+    writeFolderMembers(snapshots)
     setCollapsedColors(collapsedColors.filter((item) => item !== color))
     armAutoCollapse(color)
-  }
-
-  const ensureExpanded = (color: string) => {
-    // A post-it never disappears into a folder as a side effect of saving:
-    // creating or recoloring expands the color instead.
-    if (collapsedColors.includes(color)) {
-      setCollapsedColors(collapsedColors.filter((item) => item !== color))
-    }
   }
 
   const removeDraft = (postitId: string) => {
@@ -506,7 +869,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }
 
   const commitDraft = (draft: BoardPostIt) => {
-    clearAutoCollapse(draft.color)
+    // Saving never hides a card in a folder and never breaks one open:
+    // folders keep their snapshots, so a saved card simply stays visible
+    // until the Group button regroups. Pending auto-collapse timers keep
+    // running so nothing unfolds as a side effect of editing.
     if (handledIds.current.has(draft.id)) return
     handledIds.current.add(draft.id)
     setEditingId((current) => (current === draft.id ? null : current))
@@ -542,21 +908,33 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     )
   }
 
-  const selectPostIt = (postit: BoardPostIt, additive: boolean) => {
+  const selectPostIt = (postit: BoardPostIt) => {
     clearAutoCollapse(postit.color)
-    // Temporary ids are fine: they migrate to the saved id when the
-    // create request succeeds, so a selection made mid-save is kept.
-    setSelectedIds((current) => {
-      if (additive) {
-        return current.includes(postit.id)
-          ? current.filter((id) => id !== postit.id)
-          : [...current, postit.id]
-      }
-      return [postit.id]
-    })
+    // Single selection only: clicking a post-it selects just that card.
+    // Temporary ids migrate to the saved id when the create request
+    // succeeds, so a selection made mid-save is kept.
+    setSelectedIds([postit.id])
   }
 
   const recolorSelected = (color: string) => {
+    // While a new post-it is being created, the palette paints only the
+    // draft: selected saved post-its are left untouched, so choosing the new
+    // card's color can never ungroup or recolor anything else. On save the
+    // new card stays visible next to its collapsed color until regrouped.
+    if (
+      editingPostIt?.id.startsWith("temporary-") &&
+      editingPostIt.color !== color
+    ) {
+      const draftId = editingPostIt.id
+      queryClient.setQueryData<BoardPostIt[]>(
+        getPostitsQueryKey(boardId),
+        (current) =>
+          current?.map((postit) =>
+            postit.id === draftId ? { ...postit, color } : postit,
+          ),
+      )
+      return
+    }
     const targets = postits.filter(
       (postit) =>
         selectedIds.includes(postit.id) &&
@@ -589,18 +967,21 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (editingDraft && !editingDraft.id.startsWith("temporary-")) {
       updateMutation.mutate({ ...editingDraft, color })
     }
-    clearAutoCollapse(color)
     for (const target of targets) {
       clearAutoCollapse(target.color)
     }
-    // A draft being created is not hidden anywhere yet, so recoloring it
-    // must not expand anything; saved post-its would vanish into the
-    // folder, so their color expands instead.
+    // Recolored cards never join or break a folder: they stay visible next
+    // to it, departed members drop out of their old snapshot, and only the
+    // Group button pulls cards in.
     if (
       targets.length > 0 ||
       (editingDraft && !editingDraft.id.startsWith("temporary-"))
     ) {
-      ensureExpanded(color)
+      clearAutoCollapse(color)
+      const fresh =
+        queryClient.getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId)) ??
+        []
+      syncFolderSnapshots(fresh, recoloredIds)
     }
   }
 
@@ -622,10 +1003,40 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     updateMutation.mutate(moved)
   }
 
+  const moveFolder = (color: string, position: { x: number; y: number }) => {
+    const clamped = clampPosition(position, canvasSize)
+    const previous = folderPositions[color]
+    if (previous?.x === clamped.x && previous?.y === clamped.y) return
+    writeFolderPositions({ ...folderPositions, [color]: clamped })
+  }
+
   const editPostIt = (postit: BoardPostIt) => {
     handledIds.current.delete(postit.id)
     setEditingId(postit.id)
   }
+
+  const requestFolderRename = (color: string) => {
+    if (editingPostIt && !handledIds.current.has(editingPostIt.id)) {
+      commitDraft(editingPostIt)
+    }
+    setRenamingColor(color)
+  }
+
+  const commitFolderRename = (color: string, name: string) => {
+    setRenamingColor((current) => (current === color ? null : current))
+    const trimmed = name.trim().slice(0, 120)
+    const next = { ...folderNames }
+    if (trimmed) {
+      if (next[color] === trimmed) return
+      next[color] = trimmed
+    } else {
+      if (!(color in next)) return
+      delete next[color]
+    }
+    writeFolderNames(next)
+  }
+
+  const cancelFolderRename = () => setRenamingColor(null)
 
   const addDraft = (position: { x: number; y: number }) => {
     if (editingPostIt && !handledIds.current.has(editingPostIt.id)) {
@@ -792,7 +1203,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         <p className="text-sm text-muted-foreground">
           {isDrawing
             ? "Draw on the canvas. Switch drawing off to move post-its again."
-            : "Double-click the canvas to add a post-it. Shift-click to select several post-its. Group bundles colors into folders."}
+            : "Double-click the canvas to add a post-it. Click a post-it to select it. Group bundles colors into folders. Rename a folder with its ✎ button."}
         </p>
         <div className="flex items-center gap-2">
           <fieldset
@@ -823,9 +1234,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             variant="outline"
             size="icon"
             onClick={collapseAll}
-            disabled={multiColors.every((color) =>
-              collapsedColors.includes(color),
-            )}
+            disabled={!needsGrouping}
             data-testid="group-postits"
             aria-label="Group post-its by color"
             title="Group post-its by color"
@@ -951,7 +1360,15 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                   y={folder.y}
                   color={folder.color}
                   count={folder.members.length}
-                  enterDelay={index * 0.06}
+                  label={
+                    folder.members[0]?.title || folder.members[0]?.content || ""
+                  }
+                  name={folderNames[folder.color] ?? ""}
+                  enterDelay={Math.min(index * 0.07, 0.35)}
+                  draggable={!isDrawing}
+                  dragBoundFunc={(position) =>
+                    clampPosition(position, canvasSize)
+                  }
                   onExpand={() => expandFolder(folder.color)}
                   onDelete={() =>
                     setFolderDeleteCandidate({
@@ -959,9 +1376,11 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                       ids: folder.ids,
                     })
                   }
+                  onRename={() => requestFolderRename(folder.color)}
+                  onDragEnd={(color, position) => moveFolder(color, position)}
                 />
               ))}
-              {visiblePostits.map((postit) =>
+              {visiblePostits.map((postit, index) =>
                 postit.id === editingId ? null : (
                   <PostItNode
                     key={getPostItKey(postit)}
@@ -969,6 +1388,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     isEditing={false}
                     isDrawing={isDrawing}
                     isSelected={selectedIds.includes(postit.id)}
+                    enterDelay={Math.min(index * 0.03, 0.3)}
                     onEdit={(p) => {
                       editPostIt(p)
                     }}
@@ -977,7 +1397,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                       // yet; deleting it would hit the API with a temp id.
                       if (!p.id.startsWith("temporary-")) setDeleteCandidate(p)
                     }}
-                    onSelect={(p, additive) => selectPostIt(p, additive)}
+                    onSelect={(p) => selectPostIt(p)}
                     onDragEnd={(p, position) => movePostIt(p, position)}
                     dragBoundFunc={(position) =>
                       clampPosition(position, canvasSize)
@@ -1064,10 +1484,29 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         <ul className="sr-only" aria-label="Post-it folders on this whiteboard">
           {folders.map((folder) => (
             <li key={`folder-${folder.color}`}>
-              {`Map met ${folder.members.length} post-its`}
+              {folderNames[folder.color]
+                ? `${folderNames[folder.color]}: Map met ${folder.members.length} post-its`
+                : `Map met ${folder.members.length} post-its`}
             </li>
           ))}
         </ul>
+
+        {renamingColor !== null &&
+          folders.some((folder) => folder.color === renamingColor) && (
+            <FolderNameEditor
+              key={`rename-${renamingColor}`}
+              initialName={folderNames[renamingColor] ?? ""}
+              x={
+                (folders.find((folder) => folder.color === renamingColor)?.x) + 9 ?? 0
+              }
+              y={
+                (folders.find((folder) => folder.color === renamingColor)?.y) + 9 ?? 0
+              }
+              color={renamingColor}
+              onCommit={(name) => commitFolderRename(renamingColor, name)}
+              onCancel={cancelFolderRename}
+            />
+          )}
 
         <Dialog
           open={deleteCandidate !== null}
@@ -1128,14 +1567,26 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                 variant="destructive"
                 onClick={() => {
                   if (folderDeleteCandidate) {
-                    clearAutoCollapse(folderDeleteCandidate.color)
+                    const deletedColor = folderDeleteCandidate.color
+                    clearAutoCollapse(deletedColor)
                     for (const id of folderDeleteCandidate.ids) {
                       deleteMutation.mutate(id)
                     }
+                    const snapshots = { ...folderMembers }
+                    delete snapshots[deletedColor]
+                    writeFolderMembers(snapshots)
+                    if (deletedColor in folderNames) {
+                      const names = { ...folderNames }
+                      delete names[deletedColor]
+                      writeFolderNames(names)
+                    }
+                    if (deletedColor in folderPositions) {
+                      const positions = { ...folderPositions }
+                      delete positions[deletedColor]
+                      writeFolderPositions(positions)
+                    }
                     setCollapsedColors(
-                      collapsedColors.filter(
-                        (color) => color !== folderDeleteCandidate.color,
-                      ),
+                      collapsedColors.filter((color) => color !== deletedColor),
                     )
                     setFolderDeleteCandidate(null)
                   }

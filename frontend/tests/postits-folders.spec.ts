@@ -288,7 +288,7 @@ test.describe("Post-its groeperen in mappen", () => {
     expect(postits[0].color).toBe("#FBCFE8")
   })
 
-  test("voegt een nieuwe post-it stil toe aan een samengevouwen map", async ({
+  test("nieuwe post-it blijft zichtbaar naast een samengevouwen map", async ({
     page,
   }) => {
     await createLoggedInBoard(page)
@@ -305,13 +305,14 @@ test.describe("Post-its groeperen in mappen", () => {
     })
     await expect(folderList).toContainText("Map met 2 post-its")
 
-    // A new pink post-it joins the collapsed folder: no ungrouping.
+    // A new pink post-it neither joins silently nor breaks the folder open:
+    // the folder keeps its 2 members, the card stays visible next to it.
     await page.getByRole("button", { name: "Add post-it" }).click()
     const editor = page.getByRole("textbox", { name: "Post-it text" })
     await expect(editor).toBeFocused()
     await page.getByTestId("postit-color-pink").click()
-    await editor.fill("Derde joint stil")
-    await expect(editor).toHaveValue("Derde joint stil")
+    await editor.fill("Derde blijft los")
+    await expect(editor).toHaveValue("Derde blijft los")
 
     const createPromise = page.waitForResponse(
       (response) =>
@@ -324,7 +325,11 @@ test.describe("Post-its groeperen in mappen", () => {
     expect(created.request().postDataJSON().color).toBe("#FBCFE8")
     await expect(editor).toHaveCount(0)
 
-    // No board PATCH (no ungroup) and the folder now counts three.
+    await expect(folderList).toContainText("Map met 2 post-its")
+    // Only the Group button regroups: it is enabled again and pulls the
+    // newcomer in (snapshot-only change, so no board PATCH is expected).
+    await expect(page.getByTestId("group-postits")).toBeEnabled()
+    await page.getByTestId("group-postits").click()
     await expect(folderList).toContainText("Map met 3 post-its")
 
     const getResponsePromise = page.waitForResponse(
@@ -507,5 +512,49 @@ test.describe("Post-its groeperen in mappen", () => {
       [],
     )
     await expect(folderList.locator("li")).toHaveCount(0)
+  })
+
+  test("geeft een map een eigen naam", async ({ page }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPinkPair(
+      page,
+      boardId,
+      "Eerste naam-notitie",
+      "Tweede naam-notitie",
+    )
+    await collapseByColor(page, boardId, ["#FBCFE8"])
+    const folderList = page.getByRole("list", {
+      name: "Post-it folders on this whiteboard",
+    })
+    await expect(folderList).toContainText("Map met 2 post-its")
+
+    // The ✎ button sits bottom-left of the first folder slot.
+    const stageBox = await page.getByTestId("whiteboard-stage").boundingBox()
+    if (!stageBox) throw new Error("Whiteboard stage has no bounding box")
+    await page.mouse.click(
+      stageBox.x + FOLDER_SLOT_X + 22,
+      stageBox.y + FOLDER_SLOT_Y + 158,
+    )
+    const editor = page.getByRole("textbox", { name: "Folder name" })
+    await expect(editor).toBeVisible()
+    await editor.fill("Sprint ideeen")
+    await expect(editor).toHaveValue("Sprint ideeen")
+    await editor.blur()
+    await expect(editor).toHaveCount(0)
+    await expect(folderList).toContainText("Sprint ideeen")
+    await expect(folderList).toContainText("Map met 2 post-its")
+
+    // The name survives a reload.
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    const getResponse = await getResponsePromise
+    expect(getResponse.status()).toBe(200)
+    await expect(folderList).toContainText("Sprint ideeen")
+    await expect(folderList).toContainText("Map met 2 post-its")
   })
 })

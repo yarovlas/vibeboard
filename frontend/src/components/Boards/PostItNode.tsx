@@ -45,9 +45,11 @@ interface PostItNodeProps {
   isEditing: boolean
   isDrawing?: boolean
   isSelected?: boolean
+  /** Seconds to wait before playing, for staggered entrances. */
+  enterDelay?: number
   onEdit: (postit: BoardPostIt) => void
   onDelete: (postit: BoardPostIt) => void
-  onSelect?: (postit: BoardPostIt, additive: boolean) => void
+  onSelect?: (postit: BoardPostIt) => void
   onDragEnd?: (postit: BoardPostIt, position: { x: number; y: number }) => void
   dragBoundFunc?: (position: { x: number; y: number }) => {
     x: number
@@ -60,14 +62,22 @@ export function PostItNode({
   isEditing,
   isDrawing = false,
   isSelected = false,
+  enterDelay = 0,
   onEdit,
   onDelete,
   onSelect,
   onDragEnd,
   dragBoundFunc,
 }: PostItNodeProps) {
-  // Subtle fade so appearing (e.g. expanding a folder) feels smooth.
-  const groupRef = useMountAnimation({ duration: 0.18 })
+  // Pop-in so expanding a folder (ungrouping) feels like cards spring out.
+  // The inner group is centered, so scaling never moves the outer position.
+  const popRef = useMountAnimation({
+    delay: enterDelay,
+    duration: 0.24,
+    height: POSTIT_HEIGHT,
+    scaleFrom: 0.6,
+    width: POSTIT_WIDTH,
+  })
 
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
@@ -80,12 +90,12 @@ export function PostItNode({
 
   const handleClick = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
-    onSelect?.(postit, Boolean(event.evt.shiftKey))
+    onSelect?.(postit)
   }
 
   const handleTap = (event: KonvaEventObject<TouchEvent>) => {
     event.cancelBubble = true
-    onSelect?.(postit, false)
+    onSelect?.(postit)
   }
 
   const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
@@ -95,7 +105,6 @@ export function PostItNode({
 
   return (
     <Group
-      ref={groupRef}
       x={postit.x}
       y={postit.y}
       name={`postit-${postit.id}`}
@@ -106,67 +115,75 @@ export function PostItNode({
       onDblClick={handleDoubleClick}
       onDragEnd={handleDragEnd}
     >
-      <Rect
-        width={POSTIT_WIDTH}
-        height={POSTIT_HEIGHT}
-        fill={postit.color || POSTIT_DEFAULT_COLOR}
-        cornerRadius={10}
-        shadowColor="#92400E"
-        shadowBlur={12}
-        shadowOpacity={0.18}
-        shadowOffsetY={4}
-        perfectDrawEnabled={false}
-      />
-      {isSelected && (
+      <Group
+        ref={popRef}
+        x={POSTIT_WIDTH / 2}
+        y={POSTIT_HEIGHT / 2}
+        offsetX={POSTIT_WIDTH / 2}
+        offsetY={POSTIT_HEIGHT / 2}
+      >
         <Rect
           width={POSTIT_WIDTH}
           height={POSTIT_HEIGHT}
+          fill={postit.color || POSTIT_DEFAULT_COLOR}
           cornerRadius={10}
-          fillEnabled={false}
-          stroke="#2563EB"
-          strokeWidth={3}
-          listening={false}
+          shadowColor="#92400E"
+          shadowBlur={12}
+          shadowOpacity={0.18}
+          shadowOffsetY={4}
+          perfectDrawEnabled={false}
         />
-      )}
-      {!isEditing && (
-        <Text
-          x={16}
-          y={16}
-          width={POSTIT_WIDTH - 32}
-          height={POSTIT_HEIGHT - 32}
-          text={text || "Write a thought..."}
-          fontSize={16}
-          lineHeight={1.35}
-          fill={text ? POSTIT_TEXT : POSTIT_MUTED_TEXT}
-          wrap="word"
-          ellipsis
-          listening={false}
-        />
-      )}
-      {!isEditing && (
-        <Group
-          x={POSTIT_WIDTH - 36}
-          y={8}
-          onClick={(event) => {
-            event.cancelBubble = true
-            onDelete(postit)
-          }}
-          onTap={(event) => {
-            event.cancelBubble = true
-            onDelete(postit)
-          }}
-        >
-          <Rect width={28} height={28} fill="transparent" cornerRadius={6} />
-          <Text
-            x={6}
-            y={4}
-            text="×"
-            fontSize={20}
-            fill={POSTIT_MUTED_TEXT}
+        {isSelected && (
+          <Rect
+            width={POSTIT_WIDTH}
+            height={POSTIT_HEIGHT}
+            cornerRadius={10}
+            fillEnabled={false}
+            stroke="#2563EB"
+            strokeWidth={3}
             listening={false}
           />
-        </Group>
-      )}
+        )}
+        {!isEditing && (
+          <Text
+            x={16}
+            y={16}
+            width={POSTIT_WIDTH - 32}
+            height={POSTIT_HEIGHT - 32}
+            text={text || "Write a thought..."}
+            fontSize={16}
+            lineHeight={1.35}
+            fill={text ? POSTIT_TEXT : POSTIT_MUTED_TEXT}
+            wrap="word"
+            ellipsis
+            listening={false}
+          />
+        )}
+        {!isEditing && (
+          <Group
+            x={POSTIT_WIDTH - 36}
+            y={8}
+            onClick={(event) => {
+              event.cancelBubble = true
+              onDelete(postit)
+            }}
+            onTap={(event) => {
+              event.cancelBubble = true
+              onDelete(postit)
+            }}
+          >
+            <Rect width={28} height={28} fill="transparent" cornerRadius={6} />
+            <Text
+              x={6}
+              y={4}
+              text="×"
+              fontSize={20}
+              fill={POSTIT_MUTED_TEXT}
+              listening={false}
+            />
+          </Group>
+        )}
+      </Group>
     </Group>
   )
 }
