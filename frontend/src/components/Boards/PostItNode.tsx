@@ -2,7 +2,8 @@ import type { KonvaEventObject } from "konva/lib/Node"
 import { Group, Rect, Text } from "react-konva"
 
 import type { PostItPublic } from "@/client"
-import { useMountAnimation } from "@/hooks/useMountAnimation"
+import { CanvasDeleteButton } from "@/components/Boards/CanvasDeleteButton"
+import { useFadeIn } from "@/hooks/useMountAnimation"
 
 export const POSTIT_WIDTH = 220
 export const POSTIT_HEIGHT = 180
@@ -71,7 +72,7 @@ export function PostItNode({
 }: PostItNodeProps) {
   // Fade-in so expanding a folder (ungrouping) feels smooth. Opacity-only:
   // scaling would move hit areas and misdirect fast clicks.
-  const popRef = useMountAnimation({ delay: enterDelay, duration: 0.24 })
+  const popRef = useFadeIn({ delay: enterDelay, duration: 0.24 })
 
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
@@ -154,28 +155,11 @@ export function PostItNode({
           />
         )}
         {!isEditing && (
-          <Group
+          <CanvasDeleteButton
             x={POSTIT_WIDTH - 36}
             y={8}
-            onClick={(event) => {
-              event.cancelBubble = true
-              onDelete(postit)
-            }}
-            onTap={(event) => {
-              event.cancelBubble = true
-              onDelete(postit)
-            }}
-          >
-            <Rect width={28} height={28} fill="transparent" cornerRadius={6} />
-            <Text
-              x={6}
-              y={4}
-              text="×"
-              fontSize={20}
-              fill={POSTIT_MUTED_TEXT}
-              listening={false}
-            />
-          </Group>
+            onDelete={() => onDelete(postit)}
+          />
         )}
       </Group>
     </Group>

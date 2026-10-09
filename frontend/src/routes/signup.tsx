@@ -1,9 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import {
-  createFileRoute,
-  Link as RouterLink,
-  redirect,
-} from "@tanstack/react-router"
+import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { AuthLayout } from "@/components/Common/AuthLayout"
@@ -18,19 +14,20 @@ import {
 import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
-import useAuth, { isLoggedIn } from "@/hooks/useAuth"
+import useAuth from "@/hooks/useAuth"
+import {
+  confirmPasswordSchema,
+  emailSchema,
+  passwordSchema,
+  requireGuest,
+} from "@/lib/validation"
 
 const formSchema = z
   .object({
-    email: z.email({ message: "Invalid email address" }),
+    email: emailSchema,
     full_name: z.string().min(1, { message: "Full Name is required" }),
-    password: z
-      .string()
-      .min(1, { message: "Password is required" })
-      .min(8, { message: "Password must be at least 8 characters" }),
-    confirm_password: z
-      .string()
-      .min(1, { message: "Password confirmation is required" }),
+    password: passwordSchema,
+    confirm_password: confirmPasswordSchema,
   })
   .refine((data) => data.password === data.confirm_password, {
     message: "The passwords don't match",
@@ -41,13 +38,7 @@ type FormData = z.infer<typeof formSchema>
 
 export const Route = createFileRoute("/signup")({
   component: SignUp,
-  beforeLoad: async () => {
-    if (isLoggedIn()) {
-      throw redirect({
-        to: "/",
-      })
-    }
-  },
+  beforeLoad: requireGuest,
   head: () => ({
     meta: [
       {

@@ -1,9 +1,9 @@
 import type { KonvaEventObject } from "konva/lib/Node"
-import { useRef } from "react"
 import { Group, Rect, Text } from "react-konva"
-
+import { CanvasDeleteButton } from "@/components/Boards/CanvasDeleteButton"
 import { POSTIT_HEIGHT, POSTIT_WIDTH } from "@/components/Boards/PostItNode"
-import { useMountAnimation } from "@/hooks/useMountAnimation"
+import { useFadeIn } from "@/hooks/useMountAnimation"
+import { useSuppressClickAfterDrag } from "@/hooks/useSuppressClickAfterDrag"
 
 export const FOLDER_CORNER_RADIUS = 18
 export const FOLDER_OUTLINE = "#1F2937"
@@ -21,11 +21,8 @@ export const FOLDER_COUNT_BADGE = {
   shadowOpacity: 0.18,
 } as const
 // Kept for backwards-compat with existing imports; prefer FOLDER_COUNT_BADGE.
-export const FOLDER_BADGE_SIZE = FOLDER_COUNT_BADGE.size
-export const FOLDER_BADGE_X = POSTIT_WIDTH - FOLDER_COUNT_BADGE.size / 2
-export const FOLDER_BADGE_Y = -FOLDER_COUNT_BADGE.size / 2
-export const FOLDER_BADGE_RADIUS = FOLDER_COUNT_BADGE.radius
-export const FOLDER_BADGE_FONT_SIZE = FOLDER_COUNT_BADGE.fontSize
+const FOLDER_BADGE_X = POSTIT_WIDTH - FOLDER_COUNT_BADGE.size / 2
+const FOLDER_BADGE_Y = -FOLDER_COUNT_BADGE.size / 2
 const FOLDER_TEXT = "#1F2937"
 const FOLDER_MUTED_TEXT = "#92400E"
 
@@ -68,24 +65,24 @@ export function FolderNode({
 }: FolderNodeProps) {
   // Fade-in for collapsing. Opacity-only: scaling would move hit areas
   // and misdirect fast clicks.
-  const popRef = useMountAnimation({ delay: enterDelay, duration: 0.26 })
+  const popRef = useFadeIn({ delay: enterDelay, duration: 0.26 })
   // Clicking expands, dragging moves — suppress the click that fires after a drag.
-  const lastDragEnd = useRef(0)
+  const { markDragEnd, wasJustDragging } = useSuppressClickAfterDrag()
   const handleClick = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
-    if (Date.now() - lastDragEnd.current < 250) return
+    if (wasJustDragging()) return
     onExpand()
   }
 
   const handleTap = (event: KonvaEventObject<TouchEvent>) => {
     event.cancelBubble = true
-    if (Date.now() - lastDragEnd.current < 250) return
+    if (wasJustDragging()) return
     onExpand()
   }
 
   const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
     event.cancelBubble = true
-    lastDragEnd.current = Date.now()
+    markDragEnd()
     onDragEnd?.(color, { x: event.target.x(), y: event.target.y() })
   }
 
@@ -165,28 +162,11 @@ export function FolderNode({
           fill={FOLDER_TEXT}
           listening={false}
         />
-        <Group
+        <CanvasDeleteButton
           x={POSTIT_WIDTH - 36}
           y={POSTIT_HEIGHT - 36}
-          onClick={(event) => {
-            event.cancelBubble = true
-            onDelete()
-          }}
-          onTap={(event) => {
-            event.cancelBubble = true
-            onDelete()
-          }}
-        >
-          <Rect width={28} height={28} fill="transparent" cornerRadius={6} />
-          <Text
-            x={6}
-            y={4}
-            text="×"
-            fontSize={20}
-            fill={FOLDER_MUTED_TEXT}
-            listening={false}
-          />
-        </Group>
+          onDelete={onDelete}
+        />
         {onRename && (
           <Group
             x={8}

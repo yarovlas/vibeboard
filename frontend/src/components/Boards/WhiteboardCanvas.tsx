@@ -4,16 +4,16 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { KonvaEventObject } from "konva/lib/Node"
-import { Group, Pencil, Plus, Redo2, Undo2, Ungroup } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
 import type { BoardPublic } from "@/client"
 import { BoardsService, PostitsService, StrokesService } from "@/client"
+import { BoardToolbar } from "@/components/Boards/BoardToolbar"
+import { FolderNameEditor } from "@/components/Boards/FolderNameEditor"
 import { FolderNode } from "@/components/Boards/FolderNode"
 import {
   type BoardPostIt,
   normalizePostIt,
-  POSTIT_COLORS,
   POSTIT_DEFAULT_COLOR,
   POSTIT_HEIGHT,
   POSTIT_WIDTH,
@@ -34,166 +34,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
-
-function getBoardQueryOptions(boardId: string) {
-  return {
-    queryFn: async () =>
-      (await BoardsService.readBoard({ path: { id: boardId } })).data,
-    queryKey: ["boards", "detail", boardId] as const,
-  }
-}
-
-function getPostitsQueryKey(boardId: string) {
-  return ["boards", boardId, "postits"] as const
-}
-
-function getPostitsQueryOptions(boardId: string) {
-  return {
-    queryFn: async () => {
-      const response = await PostitsService.readPostits({
-        path: { board_id: boardId },
-      })
-      return response.data.map(normalizePostIt)
-    },
-    queryKey: getPostitsQueryKey(boardId),
-  }
-}
-
-function getStrokesQueryKey(boardId: string) {
-  return ["boards", boardId, "strokes"] as const
-}
-
-function getStrokesQueryOptions(boardId: string) {
-  return {
-    queryFn: async () => {
-      const response = await StrokesService.readStrokes({
-        path: { board_id: boardId },
-      })
-      return response.data.map(normalizeStroke)
-    },
-    queryKey: getStrokesQueryKey(boardId),
-  }
-}
-
-function createTemporaryId() {
-  if (typeof globalThis.crypto?.randomUUID === "function") {
-    return `temporary-${globalThis.crypto.randomUUID()}`
-  }
-  return `temporary-${Date.now()}-${Math.random().toString(36).slice(2)}`
-}
-
-function clampPosition(
-  position: { x: number; y: number },
-  canvasSize: { width: number; height: number },
-) {
-  return {
-    x: Math.min(
-      Math.max(0, position.x),
-      Math.max(0, canvasSize.width - POSTIT_WIDTH),
-    ),
-    y: Math.min(
-      Math.max(0, position.y),
-      Math.max(0, canvasSize.height - POSTIT_HEIGHT),
-    ),
-  }
-}
-
-const FOLDER_ROW_X = 40
-const FOLDER_ROW_Y = 40
-const FOLDER_GAP = 48
-const FOLDER_AUTO_COLLAPSE_MS = 10_000
-
-function dockPerRow(canvasWidth: number) {
-  return Math.max(
-    1,
-    Math.floor((canvasWidth - FOLDER_ROW_X) / (POSTIT_WIDTH + FOLDER_GAP)),
-  )
-}
-
-function dockSlotAt(slot: number, perRow: number) {
-  return {
-    x: FOLDER_ROW_X + (slot % perRow) * (POSTIT_WIDTH + FOLDER_GAP),
-    y: FOLDER_ROW_Y + Math.floor(slot / perRow) * (POSTIT_HEIGHT + FOLDER_GAP),
-  }
-}
-
-// First dock slot whose box keeps a full gap from every taken box.
-function findFreeDockSlot(taken: { x: number; y: number }[], perRow: number) {
-  for (let slot = 0; slot < 500; slot++) {
-    const position = dockSlotAt(slot, perRow)
-    const blocked = taken.some(
-      (box) =>
-        Math.abs(box.x - position.x) < POSTIT_WIDTH + FOLDER_GAP &&
-        Math.abs(box.y - position.y) < POSTIT_HEIGHT + FOLDER_GAP,
-    )
-    if (!blocked) return position
-  }
-  return dockSlotAt(500, perRow)
-}
-
-function FolderNameEditor({
-  initialName,
-  x,
-  y,
-  color,
-  onCommit,
-  onCancel,
-}: {
-  initialName: string
-  x: number
-  y: number
-  color: string
-  onCommit: (name: string) => void
-  onCancel: () => void
-}) {
-  const [name, setName] = useState(initialName)
-  // Escape unmounts the editor, which can fire blur afterwards: finish
-  // exactly once so a cancelled rename never commits.
-  const done = useRef(false)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-  useEffect(() => {
-    inputRef.current?.focus()
-    inputRef.current?.select()
-  }, [])
-  const finish = (commit: boolean) => {
-    if (done.current) return
-    done.current = true
-    if (commit) onCommit(name)
-    else onCancel()
-  }
-  return (
-    <textarea
-      ref={inputRef}
-      aria-label="Folder name"
-      className="absolute z-10 resize-none rounded-[10px] border border-amber-300 p-4 text-center text-lg font-medium text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
-      data-testid="folder-name-editor"
-      placeholder="Name this group..."
-      spellCheck
-      style={{
-        left: x,
-        top: y,
-        width: POSTIT_WIDTH - 16,
-        height: POSTIT_HEIGHT - 16,
-        backgroundColor: color,
-      }}
-      value={name}
-      onBlur={() => finish(true)}
-      onChange={(event) => setName(event.target.value)}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault()
-          finish(false)
-          return
-        }
-        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-          event.preventDefault()
-          finish(true)
-        }
-      }}
-    />
-  )
-}
+import {
+  clampPosition,
+  createTemporaryId,
+  dockPerRow,
+  dockSlotAt,
+  FOLDER_AUTO_COLLAPSE_MS,
+  findFreeDockSlot,
+} from "@/lib/board-geometry"
+import {
+  getBoardQueryOptions,
+  getPostitsQueryOptions,
+  getStrokesQueryOptions,
+} from "@/lib/board-queries"
+import { handleError } from "@/lib/errors"
+import { queryKeys } from "@/lib/query-keys"
 
 interface WhiteboardCanvasProps {
   boardId: string
@@ -396,7 +251,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       void queryClient.invalidateQueries({
         queryKey: getBoardQueryOptions(boardId).queryKey,
       })
-      handleError.call(showErrorToast, error)
+      handleError(error, showErrorToast)
     },
     onSuccess: (response) => {
       queryClient.setQueryData(
@@ -478,12 +333,12 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     onError: (error, draft) => {
       handledIds.current.delete(draft.id)
       queryClient.setQueryData<BoardPostIt[]>(
-        getPostitsQueryKey(boardId),
+        queryKeys.boards.postits(boardId),
         (current) => current?.filter((postit) => postit.id !== draft.id),
       )
       setEditingId((current) => (current === draft.id ? null : current))
       setSelectedIds((current) => current.filter((id) => id !== draft.id))
-      handleError.call(showErrorToast, error)
+      handleError(error, showErrorToast)
     },
     onSuccess: (response, draft) => {
       const savedPostIt = normalizePostIt(response.data)
@@ -504,15 +359,16 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       // before snapshots existed) freezes to its pre-existing members so
       // the newcomer still stays out.
       queryClient.setQueryData<BoardPostIt[]>(
-        getPostitsQueryKey(boardId),
+        queryKeys.boards.postits(boardId),
         (current) =>
           current?.map((postit) =>
             postit.id === draft.id ? savedPostIt : postit,
           ),
       )
       const allPostits =
-        queryClient.getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId)) ??
-        []
+        queryClient.getQueryData<BoardPostIt[]>(
+          queryKeys.boards.postits(boardId),
+        ) ?? []
       setFolderMembers((current) => {
         if (current[savedPostIt.color] !== undefined) return current
         const members = allPostits.filter(
@@ -532,7 +388,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         return next
       })
       void queryClient.invalidateQueries({
-        queryKey: ["boards", "detail", boardId],
+        queryKey: queryKeys.boards.detail(boardId),
       })
     },
   })
@@ -553,21 +409,21 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       handledIds.current.delete(draft.id)
       setEditingId((current) => (current === draft.id ? null : current))
       void queryClient.invalidateQueries({
-        queryKey: getPostitsQueryKey(boardId),
+        queryKey: queryKeys.boards.postits(boardId),
       })
-      handleError.call(showErrorToast, error)
+      handleError(error, showErrorToast)
     },
     onSuccess: (response, draft) => {
       const savedPostIt = normalizePostIt(response.data)
       queryClient.setQueryData<BoardPostIt[]>(
-        getPostitsQueryKey(boardId),
+        queryKeys.boards.postits(boardId),
         (current) =>
           current?.map((postit) =>
             postit.id === draft.id ? savedPostIt : postit,
           ),
       )
       void queryClient.invalidateQueries({
-        queryKey: ["boards", "detail", boardId],
+        queryKey: queryKeys.boards.detail(boardId),
       })
     },
   })
@@ -578,11 +434,11 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         path: { board_id: boardId, id: postitId },
       }),
     onError: (error) => {
-      handleError.call(showErrorToast, error)
+      handleError(error, showErrorToast)
     },
     onSuccess: (_response, postitId) => {
       queryClient.setQueryData<BoardPostIt[]>(
-        getPostitsQueryKey(boardId),
+        queryKeys.boards.postits(boardId),
         (current) => current?.filter((postit) => postit.id !== postitId),
       )
       postItKeys.current.delete(postitId)
@@ -590,11 +446,12 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       // A deleted member drops out of its folder snapshot; a folder left
       // with fewer than 2 members ungroups instead of lingering.
       const fresh =
-        queryClient.getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId)) ??
-        []
+        queryClient.getQueryData<BoardPostIt[]>(
+          queryKeys.boards.postits(boardId),
+        ) ?? []
       syncFolderSnapshots(fresh, new Set())
       void queryClient.invalidateQueries({
-        queryKey: ["boards", "detail", boardId],
+        queryKey: queryKeys.boards.detail(boardId),
       })
     },
   })
@@ -607,13 +464,13 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     onError: (error) => {
       setRedoStack([])
       void queryClient.invalidateQueries({
-        queryKey: getStrokesQueryKey(boardId),
+        queryKey: queryKeys.boards.strokes(boardId),
       })
-      handleError.call(showErrorToast, error)
+      handleError(error, showErrorToast)
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: ["boards", "detail", boardId],
+        queryKey: queryKeys.boards.detail(boardId),
       })
     },
   })
@@ -632,10 +489,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     onError: (error, line) => {
       doomedStrokeIds.current.delete(line.id)
       queryClient.setQueryData<BoardStroke[]>(
-        getStrokesQueryKey(boardId),
+        queryKeys.boards.strokes(boardId),
         (current) => current?.filter((stroke) => stroke.id !== line.id),
       )
-      handleError.call(showErrorToast, error)
+      handleError(error, showErrorToast)
     },
     onSuccess: (response, line) => {
       if (doomedStrokeIds.current.has(line.id)) {
@@ -647,14 +504,14 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       }
       const savedStroke = normalizeStroke(response.data)
       queryClient.setQueryData<BoardStroke[]>(
-        getStrokesQueryKey(boardId),
+        queryKeys.boards.strokes(boardId),
         (current) =>
           current?.map((stroke) =>
             stroke.id === line.id ? savedStroke : stroke,
           ),
       )
       void queryClient.invalidateQueries({
-        queryKey: ["boards", "detail", boardId],
+        queryKey: queryKeys.boards.detail(boardId),
       })
     },
   })
@@ -765,7 +622,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         // Recollapse snapshots whoever is currently of that color.
         const members =
           queryClient
-            .getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId))
+            .getQueryData<BoardPostIt[]>(queryKeys.boards.postits(boardId))
             ?.filter(
               (postit) =>
                 postit.color === color && !postit.id.startsWith("temporary-"),
@@ -872,7 +729,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
   const removeDraft = (postitId: string) => {
     queryClient.setQueryData<BoardPostIt[]>(
-      getPostitsQueryKey(boardId),
+      queryKeys.boards.postits(boardId),
       (current) => current?.filter((postit) => postit.id !== postitId),
     )
   }
@@ -890,7 +747,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     // change, so always commit the freshest version.
     const fresh =
       queryClient
-        .getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId))
+        .getQueryData<BoardPostIt[]>(queryKeys.boards.postits(boardId))
         ?.find((postit) => postit.id === draft.id) ?? draft
     const isTemporary = fresh.id.startsWith("temporary-")
     if (isTemporary) {
@@ -909,7 +766,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
   const updateDraftContent = (postitId: string, content: string) => {
     queryClient.setQueryData<BoardPostIt[]>(
-      getPostitsQueryKey(boardId),
+      queryKeys.boards.postits(boardId),
       (current) =>
         current?.map((postit) =>
           postit.id === postitId ? { ...postit, content } : postit,
@@ -936,7 +793,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     ) {
       const draftId = editingPostIt.id
       queryClient.setQueryData<BoardPostIt[]>(
-        getPostitsQueryKey(boardId),
+        queryKeys.boards.postits(boardId),
         (current) =>
           current?.map((postit) =>
             postit.id === draftId ? { ...postit, color } : postit,
@@ -964,7 +821,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       ...(editingDraft ? [editingDraft.id] : []),
     ])
     queryClient.setQueryData<BoardPostIt[]>(
-      getPostitsQueryKey(boardId),
+      queryKeys.boards.postits(boardId),
       (current) =>
         current?.map((postit) =>
           recoloredIds.has(postit.id) ? { ...postit, color } : postit,
@@ -988,8 +845,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     ) {
       clearAutoCollapse(color)
       const fresh =
-        queryClient.getQueryData<BoardPostIt[]>(getPostitsQueryKey(boardId)) ??
-        []
+        queryClient.getQueryData<BoardPostIt[]>(
+          queryKeys.boards.postits(boardId),
+        ) ?? []
       syncFolderSnapshots(fresh, recoloredIds)
     }
   }
@@ -1005,7 +863,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (clamped.x === postit.x && clamped.y === postit.y) return
     const moved: BoardPostIt = { ...postit, x: clamped.x, y: clamped.y }
     queryClient.setQueryData<BoardPostIt[]>(
-      getPostitsQueryKey(boardId),
+      queryKeys.boards.postits(boardId),
       (current) =>
         current?.map((item) => (item.id === moved.id ? moved : item)),
     )
@@ -1062,7 +920,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       color: POSTIT_DEFAULT_COLOR,
     }
     queryClient.setQueryData<BoardPostIt[]>(
-      getPostitsQueryKey(boardId),
+      queryKeys.boards.postits(boardId),
       (current) => [...(current ?? []), draft],
     )
     setEditingId(draft.id)
@@ -1138,7 +996,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         tool: "pen",
       }
       queryClient.setQueryData<BoardStroke[]>(
-        getStrokesQueryKey(boardId),
+        queryKeys.boards.strokes(boardId),
         (current) => [...(current ?? []), line],
       )
       setRedoStack([])
@@ -1151,7 +1009,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     const last = strokes[strokes.length - 1]
     if (!last) return
     queryClient.setQueryData<BoardStroke[]>(
-      getStrokesQueryKey(boardId),
+      queryKeys.boards.strokes(boardId),
       (current) => current?.filter((stroke) => stroke.id !== last.id),
     )
     setRedoStack((current) => [...current, last])
@@ -1170,7 +1028,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     const line: BoardStroke = { ...last, id: createTemporaryId() }
     setRedoStack((current) => current.slice(0, -1))
     queryClient.setQueryData<BoardStroke[]>(
-      getStrokesQueryKey(boardId),
+      queryKeys.boards.strokes(boardId),
       (current) => [...(current ?? []), line],
     )
     strokeMutation.mutate(line)
@@ -1204,139 +1062,25 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
   return (
     <div className="flex min-h-[60vh] flex-1 flex-col gap-3">
-      <div
-        className="flex flex-wrap items-center justify-between gap-3"
-        role="toolbar"
-        aria-label="Whiteboard tools"
-      >
-        <p className="text-sm text-muted-foreground">
-          {isDrawing
-            ? "Draw on the canvas. Switch drawing off to move post-its again."
-            : "Double-click the canvas to add a post-it. Click a post-it to select it. Group bundles colors into folders. Rename a folder with its ✎ button."}
-        </p>
-        <div className="flex items-center gap-2">
-          <fieldset
-            className="flex items-center gap-1"
-            aria-label="Post-it color"
-          >
-            <legend className="sr-only">Post-it color</legend>
-            {POSTIT_COLORS.map((swatch) => (
-              <button
-                key={swatch.name}
-                type="button"
-                data-testid={`postit-color-${swatch.name}`}
-                aria-label={`Post-it color ${swatch.name}`}
-                title={`Post-it color ${swatch.name}`}
-                disabled={selectedIds.length === 0 && !editingPostIt}
-                onMouseDown={(event) => {
-                  // Keep the focus (and the open editor) while recoloring.
-                  event.preventDefault()
-                }}
-                onClick={() => recolorSelected(swatch.value)}
-                className="h-7 w-7 rounded-full border border-black/10 disabled:cursor-not-allowed disabled:opacity-30"
-                style={{ backgroundColor: swatch.value }}
-              />
-            ))}
-          </fieldset>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={collapseAll}
-            disabled={!needsGrouping}
-            data-testid="group-postits"
-            aria-label="Group post-its by color"
-            title="Group post-its by color"
-          >
-            <Group />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={expandAll}
-            disabled={collapsedColors.length === 0}
-            data-testid="ungroup-postits"
-            aria-label="Ungroup post-its"
-            title="Ungroup post-its"
-          >
-            <Ungroup />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={undoStroke}
-            disabled={strokes.length === 0}
-            data-testid="undo-stroke"
-            aria-label="Undo stroke"
-            title="Undo stroke (Ctrl+Z)"
-          >
-            <Undo2 />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={redoStroke}
-            disabled={redoStack.length === 0}
-            data-testid="redo-stroke"
-            aria-label="Redo stroke"
-            title="Redo stroke (Ctrl+Y)"
-          >
-            <Redo2 />
-          </Button>
-          {isDrawing && (
-            <>
-              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                Pen color
-                <input
-                  type="color"
-                  aria-label="Pen color"
-                  value={penColor}
-                  onChange={(event) => setPenColor(event.target.value)}
-                  className="h-8 w-10 cursor-pointer rounded border bg-background p-0.5"
-                  data-testid="pen-color"
-                />
-              </label>
-              <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                Pen width
-                <select
-                  aria-label="Pen width"
-                  value={penWidth}
-                  onChange={(event) => setPenWidth(Number(event.target.value))}
-                  className="h-8 cursor-pointer rounded-md border bg-background px-1.5 text-sm"
-                  data-testid="pen-width"
-                >
-                  {[2, 4, 8, 12].map((width) => (
-                    <option key={width} value={width}>
-                      {width}px
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </>
-          )}
-          <Button
-            type="button"
-            variant={isDrawing ? "secondary" : "outline"}
-            onClick={() => setIsDrawing((current) => !current)}
-            data-testid="drawing-toggle"
-            aria-pressed={isDrawing}
-          >
-            <Pencil />
-            {isDrawing ? "Drawing..." : "Draw"}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => addDraft({ x: 40, y: 40 })}
-            disabled={isDrawing}
-          >
-            <Plus />
-            Add post-it
-          </Button>
-        </div>
-      </div>
+      <BoardToolbar
+        isDrawing={isDrawing}
+        penColor={penColor}
+        penWidth={penWidth}
+        canGroup={needsGrouping}
+        canUngroup={collapsedColors.length > 0}
+        canUndo={strokes.length > 0}
+        canRedo={redoStack.length > 0}
+        canRecolor={selectedIds.length > 0 || !!editingPostIt}
+        onToggleDrawing={() => setIsDrawing((current) => !current)}
+        onPenColorChange={setPenColor}
+        onPenWidthChange={setPenWidth}
+        onGroup={collapseAll}
+        onUngroup={expandAll}
+        onUndo={undoStroke}
+        onRedo={redoStroke}
+        onRecolor={recolorSelected}
+        onAddPostIt={() => addDraft({ x: 40, y: 40 })}
+      />
 
       <section
         ref={canvasRef}

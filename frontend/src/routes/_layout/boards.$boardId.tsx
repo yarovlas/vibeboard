@@ -3,18 +3,10 @@ import { createFileRoute } from "@tanstack/react-router"
 import { Table2 } from "lucide-react"
 import { Suspense } from "react"
 
-import { BoardsService } from "@/client"
 import { WhiteboardCanvas } from "@/components/Boards/WhiteboardCanvas"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useBoardView } from "@/hooks/board-view"
-
-function getBoardQueryOptions(boardId: string) {
-  return {
-    queryFn: async () =>
-      (await BoardsService.readBoard({ path: { id: boardId } })).data,
-    queryKey: ["boards", "detail", boardId],
-  }
-}
+import { getBoardQueryOptions } from "@/lib/board-queries"
 
 export const Route = createFileRoute("/_layout/boards/$boardId")({
   component: BoardPage,
