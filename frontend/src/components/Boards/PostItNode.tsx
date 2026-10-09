@@ -69,15 +69,9 @@ export function PostItNode({
   onDragEnd,
   dragBoundFunc,
 }: PostItNodeProps) {
-  // Pop-in so expanding a folder (ungrouping) feels like cards spring out.
-  // The inner group is centered, so scaling never moves the outer position.
-  const popRef = useMountAnimation({
-    delay: enterDelay,
-    duration: 0.24,
-    height: POSTIT_HEIGHT,
-    scaleFrom: 0.6,
-    width: POSTIT_WIDTH,
-  })
+  // Fade-in so expanding a folder (ungrouping) feels smooth. Opacity-only:
+  // scaling would move hit areas and misdirect fast clicks.
+  const popRef = useMountAnimation({ delay: enterDelay, duration: 0.24 })
 
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`

@@ -66,14 +66,9 @@ export function FolderNode({
   onRename,
   onDragEnd,
 }: FolderNodeProps) {
-  // Inner group is centered so the pop animation scales around the middle.
-  const popRef = useMountAnimation({
-    delay: enterDelay,
-    duration: 0.26,
-    height: POSTIT_HEIGHT,
-    scaleFrom: 0.6,
-    width: POSTIT_WIDTH,
-  })
+  // Fade-in for collapsing. Opacity-only: scaling would move hit areas
+  // and misdirect fast clicks.
+  const popRef = useMountAnimation({ delay: enterDelay, duration: 0.26 })
   // Clicking expands, dragging moves — suppress the click that fires after a drag.
   const lastDragEnd = useRef(0)
   const handleClick = (event: KonvaEventObject<MouseEvent>) => {
