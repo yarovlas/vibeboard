@@ -151,6 +151,11 @@ function FolderNameEditor({
   // Escape unmounts the editor, which can fire blur afterwards: finish
   // exactly once so a cancelled rename never commits.
   const done = useRef(false)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
   const finish = (commit: boolean) => {
     if (done.current) return
     done.current = true
@@ -159,7 +164,7 @@ function FolderNameEditor({
   }
   return (
     <textarea
-      autoFocus
+      ref={inputRef}
       aria-label="Folder name"
       className="absolute z-10 resize-none rounded-[10px] border border-amber-300 p-4 text-center text-lg font-medium text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
       data-testid="folder-name-editor"
@@ -700,6 +705,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     })
   })()
   const collapsedIds = new Set(folders.flatMap((folder) => folder.ids))
+  const renamingFolder =
+    renamingColor !== null
+      ? folders.find((folder) => folder.color === renamingColor)
+      : undefined
   const visiblePostits = postits.filter(
     (postit) => !collapsedIds.has(postit.id),
   )
@@ -1491,22 +1500,17 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           ))}
         </ul>
 
-        {renamingColor !== null &&
-          folders.some((folder) => folder.color === renamingColor) && (
-            <FolderNameEditor
-              key={`rename-${renamingColor}`}
-              initialName={folderNames[renamingColor] ?? ""}
-              x={
-                (folders.find((folder) => folder.color === renamingColor)?.x) + 9 ?? 0
-              }
-              y={
-                (folders.find((folder) => folder.color === renamingColor)?.y) + 9 ?? 0
-              }
-              color={renamingColor}
-              onCommit={(name) => commitFolderRename(renamingColor, name)}
-              onCancel={cancelFolderRename}
-            />
-          )}
+        {renamingFolder && (
+          <FolderNameEditor
+            key={`rename-${renamingFolder.color}`}
+            initialName={folderNames[renamingFolder.color] ?? ""}
+            x={renamingFolder.x}
+            y={renamingFolder.y}
+            color={renamingFolder.color}
+            onCommit={(name) => commitFolderRename(renamingFolder.color, name)}
+            onCancel={cancelFolderRename}
+          />
+        )}
 
         <Dialog
           open={deleteCandidate !== null}

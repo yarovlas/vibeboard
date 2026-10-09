@@ -21,4 +21,8 @@ alls = "alls"
 
 [default.extend-words]
 actie = "actie"
+actieve = "actieve"
+alle = "alle"
+interactie = "interactie"
+stil = "stil"
 tekst = "tekst"
