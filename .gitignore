@@ -6,3 +6,7 @@ backend/app/frontend/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# OS and IDE artifacts
+.DS_Store
+.idea/
