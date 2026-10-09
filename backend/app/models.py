@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from pydantic import EmailStr
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Column, DateTime, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -82,6 +82,7 @@ class BoardCreate(BoardBase):
 # Properties to receive on board update
 class BoardUpdate(SQLModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
+    collapsed_colors: list[str] | None = None
 
 
 # Database model, database table inferred from class name
@@ -101,6 +102,10 @@ class Board(BoardBase, table=True):
     owner: User | None = Relationship(back_populates="boards")
     postits: list[PostIt] = Relationship(back_populates="board", cascade_delete=True)
     strokes: list[Stroke] = Relationship(back_populates="board", cascade_delete=True)
+    collapsed_colors: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    )
 
 
 # Properties to return via API, id is always required
@@ -109,6 +114,7 @@ class BoardPublic(BoardBase):
     owner_id: uuid.UUID
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    collapsed_colors: list[str] = Field(default_factory=list)
 
 
 class BoardsPublic(SQLModel):
@@ -122,6 +128,7 @@ class PostItBase(SQLModel):
     content: str = Field(default="", max_length=10_000)
     x: float = 0.0
     y: float = 0.0
+    color: str = Field(default="#FEF3C7", max_length=32)
 
 
 # Properties to receive on post-it creation
@@ -135,6 +142,7 @@ class PostItUpdate(SQLModel):
     content: str | None = Field(default=None, max_length=10_000)
     x: float | None = None
     y: float | None = None
+    color: str | None = Field(default=None, max_length=32)
 
 
 # Database model, database table inferred from class name

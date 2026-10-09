@@ -291,3 +291,55 @@ def test_delete_postit_not_enough_permissions(
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Not enough permissions"
+
+
+def test_create_postit_default_color(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    response = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Default styled note"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["color"] == "#FEF3C7"
+
+
+def test_create_postit_with_color(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    response = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Blue note", "color": "#BFDBFE"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["color"] == "#BFDBFE"
+
+
+def test_update_postit_color(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Recolor me"},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+        json={"color": "#FBCFE8"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["color"] == "#FBCFE8"
+    assert body["content"] == "Recolor me"

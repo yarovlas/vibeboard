@@ -38,6 +38,10 @@ export type BoardPublic = {
      * Updated At
      */
     updated_at?: string | null;
+    /**
+     * Collapsed Colors
+     */
+    collapsed_colors?: Array<string>;
 };
 
 /**
@@ -48,6 +52,10 @@ export type BoardUpdate = {
      * Name
      */
     name?: string | null;
+    /**
+     * Collapsed Colors
+     */
+    collapsed_colors?: Array<string> | null;
 };
 
 /**
@@ -148,6 +156,10 @@ export type PostItCreate = {
      * Y
      */
     y?: number;
+    /**
+     * Color
+     */
+    color?: string;
 };
 
 /**
@@ -170,6 +182,10 @@ export type PostItPublic = {
      * Y
      */
     y?: number;
+    /**
+     * Color
+     */
+    color?: string;
     /**
      * Id
      */
@@ -200,6 +216,10 @@ export type PostItUpdate = {
      * Y
      */
     y?: number | null;
+    /**
+     * Color
+     */
+    color?: string | null;
 };
 
 /**
