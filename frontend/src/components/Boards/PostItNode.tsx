@@ -31,6 +31,36 @@ const STATUS_STYLES: Record<PostItStatus, { fill: string; text: string }> = {
   DONE: { fill: "#16A34A", text: "#FFFFFF" },
 }
 
+// Left-edge urgency strip; a post-it without priority shows no strip.
+const PRIORITY_STRIP_COLORS: Record<PostItPriority, string> = {
+  LOW: "#94A3B8",
+  MEDIUM: "#FBBF24",
+  HIGH: "#F87171",
+}
+const PRIORITY_STRIP_WIDTH = 6
+
+// Due-date badge in the bottom-left corner, styled like the folder badge.
+const DUE_BADGE = {
+  height: 20,
+  radius: 10,
+  fontSize: 11,
+  paddingX: 8,
+} as const
+
+/**
+ * Render an ISO date (YYYY-MM-DD) as a compact badge, e.g. "3 nov".
+ * Parsed as a UTC date so timezones never shift the calendar day.
+ */
+function formatDueDate(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return isoDate
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  })
+}
+
 export type BoardPostIt = {
   id: string
   board_id: string
@@ -150,6 +180,15 @@ export function PostItNode({
           shadowOffsetY={4}
           perfectDrawEnabled={false}
         />
+        {!isEditing && postit.priority && (
+          <Rect
+            width={PRIORITY_STRIP_WIDTH}
+            height={POSTIT_HEIGHT}
+            fill={PRIORITY_STRIP_COLORS[postit.priority]}
+            cornerRadius={[10, 0, 0, 10]}
+            listening={false}
+          />
+        )}
         {isSelected && (
           <Rect
             width={POSTIT_WIDTH}
@@ -200,6 +239,25 @@ export function PostItNode({
             x={POSTIT_WIDTH - 36}
             y={8}
             onDelete={() => onDelete(postit)}
+          />
+        )}
+        {!isEditing && postit.due_date && (
+          <Text
+            x={12}
+            y={POSTIT_HEIGHT - DUE_BADGE.height - 10}
+            width={
+              formatDueDate(postit.due_date).length * 6.4 +
+              DUE_BADGE.paddingX * 2
+            }
+            height={DUE_BADGE.height}
+            align="center"
+            verticalAlign="middle"
+            text={formatDueDate(postit.due_date)}
+            fontSize={DUE_BADGE.fontSize}
+            fill="#7C2D12"
+            background="rgba(255, 255, 255, 0.65)"
+            cornerRadius={DUE_BADGE.radius}
+            listening={false}
           />
         )}
       </Group>
