@@ -1,7 +1,7 @@
 import type { KonvaEventObject } from "konva/lib/Node"
 import { Group, Rect, Text } from "react-konva"
 
-import type { PostItPublic } from "@/client"
+import type { PostItPriority, PostItPublic, PostItStatus } from "@/client"
 import { CanvasDeleteButton } from "@/components/Boards/CanvasDeleteButton"
 import { useFadeIn } from "@/hooks/useMountAnimation"
 
@@ -27,6 +27,9 @@ export type BoardPostIt = {
   x: number
   y: number
   color: string
+  status: PostItStatus
+  priority: PostItPriority | null
+  due_date: string | null
 }
 
 export function normalizePostIt(postit: PostItPublic): BoardPostIt {
@@ -38,6 +41,9 @@ export function normalizePostIt(postit: PostItPublic): BoardPostIt {
     x: postit.x ?? 0,
     y: postit.y ?? 0,
     color: postit.color ?? POSTIT_DEFAULT_COLOR,
+    status: postit.status ?? "TODO",
+    priority: postit.priority ?? null,
+    due_date: postit.due_date ?? null,
   }
 }
 

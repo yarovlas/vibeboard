@@ -918,6 +918,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       x: clampPosition(position, canvasSize).x,
       y: clampPosition(position, canvasSize).y,
       color: POSTIT_DEFAULT_COLOR,
+      status: "TODO",
+      priority: null,
+      due_date: null,
     }
     queryClient.setQueryData<BoardPostIt[]>(
       queryKeys.boards.postits(boardId),
