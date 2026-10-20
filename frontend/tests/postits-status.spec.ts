@@ -109,9 +109,7 @@ test.describe("Post-it status", () => {
     await page.getByTestId("postit-due-date").fill("2026-11-30")
     const dueDateResponse = await dueDatePatchPromise
     expect(dueDateResponse.status()).toBe(200)
-    expect(dueDateResponse.request().postDataJSON().due_date).toBe(
-      "2026-11-30",
-    )
+    expect(dueDateResponse.request().postDataJSON().due_date).toBe("2026-11-30")
 
     const getResponsePromise = page.waitForResponse(
       (response) =>
