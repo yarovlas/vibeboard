@@ -81,4 +81,49 @@ test.describe("Post-it status", () => {
     expect(postits).toHaveLength(1)
     expect(postits[0].status).toBe("DONE")
   })
+
+  test("stelt prioriteit en vervaldatum in en behoudt deze na herladen", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPostIt(page, boardId, "Taak met deadline")
+
+    await openEditor(page)
+    const patchResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+    await page.getByTestId("postit-priority-select").click()
+    await page.getByRole("option", { name: "HIGH" }).click()
+    const priorityResponse = await patchResponsePromise
+    expect(priorityResponse.status()).toBe(200)
+    expect(priorityResponse.request().postDataJSON().priority).toBe("HIGH")
+
+    const dueDatePatchPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+    await page.getByTestId("postit-due-date").fill("2026-11-30")
+    const dueDateResponse = await dueDatePatchPromise
+    expect(dueDateResponse.status()).toBe(200)
+    expect(dueDateResponse.request().postDataJSON().due_date).toBe(
+      "2026-11-30",
+    )
+
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    const getResponse = await getResponsePromise
+    expect(getResponse.status()).toBe(200)
+    const postits = await getResponse.json()
+    expect(postits).toHaveLength(1)
+    expect(postits[0].priority).toBe("HIGH")
+    expect(postits[0].due_date).toBe("2026-11-30")
+  })
 })
