@@ -6,11 +6,12 @@ import {
 import type { KonvaEventObject } from "konva/lib/Node"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
-import type { BoardPublic } from "@/client"
+import type { BoardPublic, PostItStatus } from "@/client"
 import { BoardsService, PostitsService, StrokesService } from "@/client"
 import { BoardToolbar } from "@/components/Boards/BoardToolbar"
 import { FolderNameEditor } from "@/components/Boards/FolderNameEditor"
 import { FolderNode } from "@/components/Boards/FolderNode"
+import { PostItMetaEditor } from "@/components/Boards/PostItMetaEditor"
 import {
   type BoardPostIt,
   normalizePostIt,
@@ -327,6 +328,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           x: draft.x,
           y: draft.y,
           color: draft.color,
+          status: draft.status,
         },
         path: { board_id: boardId },
       }),
@@ -402,6 +404,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           x: draft.x,
           y: draft.y,
           color: draft.color,
+          status: draft.status,
         },
         path: { board_id: boardId, id: draft.id },
       }),
@@ -780,6 +783,24 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     // Temporary ids migrate to the saved id when the create request
     // succeeds, so a selection made mid-save is kept.
     setSelectedIds([postit.id])
+  }
+
+  const changeStatus = (postit: BoardPostIt, status: PostItStatus) => {
+    // Take the freshest version: the render-scope copy can predate the last
+    // keystroke, exactly like commitDraft does. A draft lives only in the
+    // cache until it is committed, so its status is saved with the rest.
+    const fresh =
+      queryClient
+        .getQueryData<BoardPostIt[]>(queryKeys.boards.postits(boardId))
+        ?.find((item) => item.id === postit.id) ?? postit
+    if (fresh.status === status) return
+    const next = { ...fresh, status }
+    queryClient.setQueryData<BoardPostIt[]>(
+      queryKeys.boards.postits(boardId),
+      (current) => current?.map((item) => (item.id === fresh.id ? next : item)),
+    )
+    if (fresh.id.startsWith("temporary-")) return
+    updateMutation.mutate(next)
   }
 
   const recolorSelected = (color: string) => {
@@ -1199,6 +1220,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             aria-label="Post-it text"
             className="absolute z-10 resize-none rounded-[10px] border border-amber-300 p-4 text-sm leading-relaxed text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
             data-testid="post-it-editor"
+            data-postit-editor-ui
             placeholder="Write a thought..."
             spellCheck
             style={{
@@ -1209,7 +1231,16 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
               backgroundColor: editingPostIt.color || POSTIT_DEFAULT_COLOR,
             }}
             value={editingPostIt.content}
-            onBlur={() => commitDraft(editingPostIt)}
+            onBlur={(event) => {
+              // Focus hopping to the metadata panel (or its select menu)
+              // keeps the editor open; only a real leave saves the draft.
+              const target = event.relatedTarget
+              const staysInEditor =
+                target instanceof Element &&
+                (target.closest("[data-postit-editor-ui]") !== null ||
+                  target.closest("[data-slot='select-content']") !== null)
+              if (!staysInEditor) commitDraft(editingPostIt)
+            }}
             onChange={(event) =>
               updateDraftContent(editingPostIt.id, event.target.value)
             }
@@ -1227,12 +1258,25 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           />
         )}
 
+        {editingPostIt && (
+          <PostItMetaEditor
+            key={`meta-${editingPostIt.id}`}
+            status={editingPostIt.status}
+            x={editingPostIt.x}
+            y={editingPostIt.y}
+            onStatusChange={(status) => changeStatus(editingPostIt, status)}
+            onEditorLeave={() => commitDraft(editingPostIt)}
+            onRestoreFocus={() => editorRef.current?.focus()}
+          />
+        )}
+
         <ul className="sr-only" aria-label="Post-its on this whiteboard">
           {postits.map((postit) => (
             <li key={getPostItKey(postit)}>
               {postit.title
                 ? `${postit.title}: ${postit.content}`
                 : postit.content || "Empty post-it"}
+              {` (status: ${postit.status})`}
             </li>
           ))}
         </ul>

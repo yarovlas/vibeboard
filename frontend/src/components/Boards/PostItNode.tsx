@@ -19,6 +19,18 @@ export const POSTIT_COLORS = [
 const POSTIT_TEXT = "#1F2937"
 const POSTIT_MUTED_TEXT = "#92400E"
 
+export const STATUS_LABELS: Record<PostItStatus, string> = {
+  TODO: "TODO",
+  IN_PROGRESS: "IN PROGRESS",
+  DONE: "DONE",
+}
+
+const STATUS_STYLES: Record<PostItStatus, { fill: string; text: string }> = {
+  TODO: { fill: "#64748B", text: "#FFFFFF" },
+  IN_PROGRESS: { fill: "#2563EB", text: "#FFFFFF" },
+  DONE: { fill: "#16A34A", text: "#FFFFFF" },
+}
+
 export type BoardPostIt = {
   id: string
   board_id: string
@@ -84,6 +96,10 @@ export function PostItNode({
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
     : postit.content
 
+  const statusLabel = STATUS_LABELS[postit.status] ?? "TODO"
+  const statusStyle = STATUS_STYLES[postit.status] ?? STATUS_STYLES.TODO
+  const statusPillWidth = Math.ceil(statusLabel.length * 6.6) + 16
+
   const handleDoubleClick = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
     onEdit(postit)
@@ -146,11 +162,30 @@ export function PostItNode({
           />
         )}
         {!isEditing && (
+          <Group x={12} y={10} listening={false}>
+            <Rect
+              width={statusPillWidth}
+              height={18}
+              cornerRadius={9}
+              fill={statusStyle.fill}
+            />
+            <Text
+              x={8}
+              y={3}
+              width={statusPillWidth - 16}
+              text={statusLabel}
+              fontSize={11}
+              fill={statusStyle.text}
+              wrap="none"
+            />
+          </Group>
+        )}
+        {!isEditing && (
           <Text
             x={16}
-            y={16}
+            y={38}
             width={POSTIT_WIDTH - 32}
-            height={POSTIT_HEIGHT - 32}
+            height={POSTIT_HEIGHT - 38 - 16}
             text={text || "Write a thought..."}
             fontSize={16}
             lineHeight={1.35}
