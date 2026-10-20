@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 
 from pydantic import EmailStr
@@ -19,6 +19,14 @@ class PostItStatus(StrEnum):
     TODO = "TODO"
     IN_PROGRESS = "IN_PROGRESS"
     DONE = "DONE"
+
+
+class PostItPriority(StrEnum):
+    """Urgency of a post-it task; None means no priority set."""
+
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
 
 
 # Shared properties
@@ -147,6 +155,14 @@ class PostItBase(SQLModel):
             server_default="TODO",
         ),
     )
+    priority: PostItPriority | None = Field(
+        default=None,
+        sa_column=Column(
+            AutoString(length=16),
+            nullable=True,
+        ),
+    )
+    due_date: date | None = None
 
 
 # Properties to receive on post-it creation
@@ -162,6 +178,8 @@ class PostItUpdate(SQLModel):
     y: float | None = None
     color: str | None = Field(default=None, max_length=32)
     status: PostItStatus | None = None
+    priority: PostItPriority | None = None
+    due_date: date | None = None
 
 
 # Database model, database table inferred from class name
