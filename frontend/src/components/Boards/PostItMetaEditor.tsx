@@ -51,7 +51,7 @@ export function PostItMetaEditor({
 }: PostItMetaEditorProps) {
   return (
     <fieldset
-      className="absolute z-10 m-0 grid max-w-[260px] grid-cols-2 items-end gap-x-3 gap-y-2 rounded-[10px] border border-slate-200 bg-background px-3 py-2 shadow-lg"
+      className="absolute z-10 m-0 flex w-[204px] flex-col gap-2 rounded-[10px] border border-slate-200 bg-background px-3 py-2 shadow-lg"
       aria-label="Post-it metadata"
       data-testid="post-it-meta-editor"
       data-postit-editor-ui
@@ -85,7 +85,7 @@ export function PostItMetaEditor({
           <SelectTrigger
             id="postit-status-select"
             size="sm"
-            className="h-8"
+            className="h-8 w-full"
             data-testid="postit-status-select"
           >
             <SelectValue />
@@ -122,7 +122,7 @@ export function PostItMetaEditor({
           <SelectTrigger
             id="postit-priority-select"
             size="sm"
-            className="h-8"
+            className="h-8 w-full"
             data-testid="postit-priority-select"
           >
             <SelectValue />
@@ -152,7 +152,7 @@ export function PostItMetaEditor({
         <input
           id="postit-due-date"
           type="date"
-          className="h-8 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
           data-testid="postit-due-date"
           value={dueDate ?? ""}
           onChange={(event) =>
