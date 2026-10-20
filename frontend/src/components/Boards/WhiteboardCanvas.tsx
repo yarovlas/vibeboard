@@ -6,7 +6,7 @@ import {
 import type { KonvaEventObject } from "konva/lib/Node"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
-import type { BoardPublic, PostItStatus } from "@/client"
+import type { BoardPublic } from "@/client"
 import { BoardsService, PostitsService, StrokesService } from "@/client"
 import { BoardToolbar } from "@/components/Boards/BoardToolbar"
 import { FolderNameEditor } from "@/components/Boards/FolderNameEditor"
@@ -329,6 +329,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           y: draft.y,
           color: draft.color,
           status: draft.status,
+          priority: draft.priority,
+          due_date: draft.due_date,
         },
         path: { board_id: boardId },
       }),
@@ -405,6 +407,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           y: draft.y,
           color: draft.color,
           status: draft.status,
+          priority: draft.priority,
+          due_date: draft.due_date,
         },
         path: { board_id: boardId, id: draft.id },
       }),
@@ -785,16 +789,22 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     setSelectedIds([postit.id])
   }
 
-  const changeStatus = (postit: BoardPostIt, status: PostItStatus) => {
+  const changeMeta = (
+    postit: BoardPostIt,
+    patch: Partial<Pick<BoardPostIt, "status" | "priority" | "due_date">>,
+  ) => {
     // Take the freshest version: the render-scope copy can predate the last
     // keystroke, exactly like commitDraft does. A draft lives only in the
-    // cache until it is committed, so its status is saved with the rest.
+    // cache until it is committed, so its metadata is saved with the rest.
     const fresh =
       queryClient
         .getQueryData<BoardPostIt[]>(queryKeys.boards.postits(boardId))
         ?.find((item) => item.id === postit.id) ?? postit
-    if (fresh.status === status) return
-    const next = { ...fresh, status }
+    const unchanged = Object.entries(patch).every(
+      ([key, value]) => fresh[key as keyof BoardPostIt] === value,
+    )
+    if (unchanged) return
+    const next = { ...fresh, ...patch }
     queryClient.setQueryData<BoardPostIt[]>(
       queryKeys.boards.postits(boardId),
       (current) => current?.map((item) => (item.id === fresh.id ? next : item)),
@@ -1262,9 +1272,17 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           <PostItMetaEditor
             key={`meta-${editingPostIt.id}`}
             status={editingPostIt.status}
+            priority={editingPostIt.priority}
+            dueDate={editingPostIt.due_date}
             x={editingPostIt.x}
             y={editingPostIt.y}
-            onStatusChange={(status) => changeStatus(editingPostIt, status)}
+            onStatusChange={(status) => changeMeta(editingPostIt, { status })}
+            onPriorityChange={(priority) =>
+              changeMeta(editingPostIt, { priority })
+            }
+            onDueDateChange={(due_date) =>
+              changeMeta(editingPostIt, { due_date })
+            }
             onEditorLeave={() => commitDraft(editingPostIt)}
             onRestoreFocus={() => editorRef.current?.focus()}
           />

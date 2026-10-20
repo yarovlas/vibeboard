@@ -1,4 +1,4 @@
-import type { PostItStatus } from "@/client"
+import type { PostItPriority, PostItStatus } from "@/client"
 import { POSTIT_HEIGHT, STATUS_LABELS } from "@/components/Boards/PostItNode"
 import {
   Select,
@@ -8,11 +8,24 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+const PRIORITY_LABELS: Record<PostItPriority, string> = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+}
+
+/** Radix Select cannot hold an empty value: "none" stands in for null. */
+const NO_PRIORITY = "none"
+
 interface PostItMetaEditorProps {
   status: PostItStatus
+  priority: PostItPriority | null
+  dueDate: string | null
   x: number
   y: number
   onStatusChange: (status: PostItStatus) => void
+  onPriorityChange: (priority: PostItPriority | null) => void
+  onDueDateChange: (dueDate: string | null) => void
   /** Focus left the editor UI entirely (canvas, toolbar): save. */
   onEditorLeave: () => void
   /** Return to the text editor after the select menu closes. */
@@ -26,15 +39,19 @@ interface PostItMetaEditorProps {
  */
 export function PostItMetaEditor({
   status,
+  priority,
+  dueDate,
   x,
   y,
   onStatusChange,
+  onPriorityChange,
+  onDueDateChange,
   onEditorLeave,
   onRestoreFocus,
 }: PostItMetaEditorProps) {
   return (
     <fieldset
-      className="absolute z-10 m-0 flex items-center gap-2 rounded-[10px] border border-slate-200 bg-background px-3 py-2 shadow-lg"
+      className="absolute z-10 m-0 flex max-w-[280px] flex-wrap items-center gap-2 rounded-[10px] border border-slate-200 bg-background px-3 py-2 shadow-lg"
       aria-label="Post-it metadata"
       data-testid="post-it-meta-editor"
       data-postit-editor-ui
@@ -85,6 +102,58 @@ export function PostItMetaEditor({
           ))}
         </SelectContent>
       </Select>
+      <label
+        className="text-xs font-medium text-muted-foreground"
+        htmlFor="postit-priority-select"
+      >
+        Priority
+      </label>
+      <Select
+        value={priority ?? NO_PRIORITY}
+        onValueChange={(value) =>
+          onPriorityChange(
+            value === NO_PRIORITY ? null : (value as PostItPriority),
+          )
+        }
+      >
+        <SelectTrigger
+          id="postit-priority-select"
+          size="sm"
+          className="h-8"
+          data-testid="postit-priority-select"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            onRestoreFocus()
+          }}
+        >
+          <SelectItem value={NO_PRIORITY}>None</SelectItem>
+          {(Object.keys(PRIORITY_LABELS) as PostItPriority[]).map((value) => (
+            <SelectItem key={value} value={value}>
+              {PRIORITY_LABELS[value]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <label
+        className="text-xs font-medium text-muted-foreground"
+        htmlFor="postit-due-date"
+      >
+        Due date
+      </label>
+      <input
+        id="postit-due-date"
+        type="date"
+        className="h-8 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        data-testid="postit-due-date"
+        value={dueDate ?? ""}
+        onChange={(event) =>
+          onDueDateChange(event.target.value === "" ? null : event.target.value)
+        }
+      />
     </fieldset>
   )
 }
