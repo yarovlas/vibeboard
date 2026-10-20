@@ -20,6 +20,7 @@ import {
   POSTIT_WIDTH,
   PostItNode,
 } from "@/components/Boards/PostItNode"
+import { PostItTooltip } from "@/components/Boards/PostItTooltip"
 import {
   type BoardStroke,
   normalizeStroke,
@@ -65,6 +66,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const { data: board } = useSuspenseQuery(getBoardQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [penColor, setPenColor] = useState("#111827")
   const [penWidth, setPenWidth] = useState(4)
@@ -569,6 +571,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     })
   })()
   const collapsedIds = new Set(folders.flatMap((folder) => folder.ids))
+  // Hidden folder members are not rendered, so they cannot stay hovered.
+  const hoveredPostIt = postits.find(
+    (postit) => postit.id === hoveredId && !collapsedIds.has(postit.id),
+  )
   const renamingFolder =
     renamingColor !== null
       ? folders.find((folder) => folder.color === renamingColor)
@@ -910,6 +916,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
   const editPostIt = (postit: BoardPostIt) => {
     handledIds.current.delete(postit.id)
+    setHoveredId(null)
     setEditingId(postit.id)
   }
 
@@ -1185,6 +1192,13 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                       if (!p.id.startsWith("temporary-")) setDeleteCandidate(p)
                     }}
                     onSelect={(p) => selectPostIt(p)}
+                    onHoverChange={(p, hovered) => {
+                      if (isDrawing || editingId) {
+                        setHoveredId(null)
+                        return
+                      }
+                      setHoveredId(hovered ? p.id : null)
+                    }}
                     onDragEnd={(p, position) => movePostIt(p, position)}
                     dragBoundFunc={(position) =>
                       clampPosition(position, canvasSize)
@@ -1211,6 +1225,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
               )}
             </Layer>
           </Stage>
+        )}
+
+        {hoveredPostIt && !editingPostIt && !isDrawing && (
+          <PostItTooltip postit={hoveredPostIt} open />
         )}
 
         {postits.length === 0 && !editingPostIt && (

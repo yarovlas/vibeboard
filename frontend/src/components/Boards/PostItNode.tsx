@@ -99,6 +99,8 @@ interface PostItNodeProps {
   onEdit: (postit: BoardPostIt) => void
   onDelete: (postit: BoardPostIt) => void
   onSelect?: (postit: BoardPostIt) => void
+  /** Hover drives the DOM tooltip that cannot live inside the Konva stage. */
+  onHoverChange?: (postit: BoardPostIt, hovered: boolean) => void
   onDragEnd?: (postit: BoardPostIt, position: { x: number; y: number }) => void
   dragBoundFunc?: (position: { x: number; y: number }) => {
     x: number
@@ -115,6 +117,7 @@ export function PostItNode({
   onEdit,
   onDelete,
   onSelect,
+  onHoverChange,
   onDragEnd,
   dragBoundFunc,
 }: PostItNodeProps) {
@@ -150,6 +153,16 @@ export function PostItNode({
     onDragEnd?.(postit, { x: event.target.x(), y: event.target.y() })
   }
 
+  const handleMouseEnter = (event: KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true
+    onHoverChange?.(postit, true)
+  }
+
+  const handleMouseLeave = (event: KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true
+    onHoverChange?.(postit, false)
+  }
+
   return (
     <Group
       x={postit.x}
@@ -160,6 +173,8 @@ export function PostItNode({
       onClick={handleClick}
       onTap={handleTap}
       onDblClick={handleDoubleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onDragEnd={handleDragEnd}
     >
       <Group
