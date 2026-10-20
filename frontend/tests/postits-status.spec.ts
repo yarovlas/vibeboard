@@ -126,4 +126,30 @@ test.describe("Post-it status", () => {
     expect(postits[0].priority).toBe("HIGH")
     expect(postits[0].due_date).toBe("2026-11-30")
   })
+
+  test("toont de hover-tooltip en verbergt deze weer bij weggaan", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPostIt(page, boardId, "Hover mij")
+
+    const stage = page.getByTestId("whiteboard-stage")
+    const box = await stage.boundingBox()
+    if (!box) throw new Error("Whiteboard stage has no bounding box")
+
+    const tooltip = page.getByTestId("post-it-tooltip")
+    // The card sits at the top-left dock slot (40, 40) and is 220x180.
+    const cardCenterX = box.x + 40 + 110
+    const cardCenterY = box.y + 40 + 90
+
+    // Hovering the card reveals the summary tooltip.
+    await page.mouse.move(cardCenterX, cardCenterY)
+    await expect(tooltip).toBeVisible()
+    await expect(tooltip).toContainText("Status: TODO")
+
+    // Leaving the card hides it again.
+    await page.mouse.move(box.x + box.width - 20, box.y + box.height - 20)
+    await expect(tooltip).toHaveCount(0)
+  })
 })
