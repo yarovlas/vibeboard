@@ -343,3 +343,76 @@ def test_update_postit_color(
     body = response.json()
     assert body["color"] == "#FBCFE8"
     assert body["content"] == "Recolor me"
+
+
+def test_create_postit_default_status(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    response = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "New task"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "TODO"
+
+
+def test_create_postit_with_status(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    response = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Work in progress", "status": "IN_PROGRESS"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "IN_PROGRESS"
+
+
+def test_update_postit_status(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Finish the report"},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+        json={"status": "DONE"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "DONE"
+    assert body["content"] == "Finish the report"
+
+
+def test_update_postit_invalid_status(
+    client: TestClient, first_user_token_headers: dict[str, str]
+) -> None:
+    board_id = create_board(client, first_user_token_headers)
+    created = client.post(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits",
+        headers=first_user_token_headers,
+        json={"content": "Statusless note"},
+    )
+    assert created.status_code == 200
+    postit_id = created.json()["id"]
+
+    response = client.patch(
+        f"{settings.API_V1_STR}/boards/{board_id}/postits/{postit_id}",
+        headers=first_user_token_headers,
+        json={"status": "BLOCKED"},
+    )
+
+    assert response.status_code == 422
