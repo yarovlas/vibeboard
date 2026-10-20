@@ -56,7 +56,11 @@ export function PostItTooltip({ postit, open }: PostItTooltipProps) {
           }}
         />
       </TooltipTrigger>
-      <TooltipContent side="top" data-testid="post-it-tooltip">
+      <TooltipContent
+        side="top"
+        data-testid="post-it-tooltip"
+        className="pointer-events-none"
+      >
         <div className="flex flex-col gap-0.5">
           {rows.map((row) => (
             <span key={row}>{row}</span>
