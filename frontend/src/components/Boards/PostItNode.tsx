@@ -131,7 +131,9 @@ export function PostItNode({
 
   const statusLabel = STATUS_LABELS[postit.status] ?? "TODO"
   const statusStyle = STATUS_STYLES[postit.status] ?? STATUS_STYLES.TODO
-  const statusPillWidth = Math.ceil(statusLabel.length * 6.6) + 16
+  // Uppercase 11px letters need ~7.6px each; measure generously so Konva's
+  // fixed-width Text never clips the label (was clipping "IN PROGRESS").
+  const statusPillWidth = Math.ceil(statusLabel.length * 7.6) + 18
 
   const handleDoubleClick = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
