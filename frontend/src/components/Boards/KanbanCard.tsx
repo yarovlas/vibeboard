@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core"
-import { CalendarDays } from "lucide-react"
+import { CalendarDays, Pencil } from "lucide-react"
 
 import {
   type BoardPostIt,
@@ -8,6 +8,7 @@ import {
   PRIORITY_COLORS,
   STATUS_LABELS,
 } from "@/components/Boards/PostItNode"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 interface KanbanCardSurfaceProps {
@@ -91,15 +92,19 @@ export function KanbanCardSurface({
 
 interface KanbanCardProps {
   postit: BoardPostIt
+  /** Open the edit dialog for this card. */
+  onEdit?: (postit: BoardPostIt) => void
 }
 
 /**
- * One saved post-it in a kanban column. The whole card is the drag handle, so
- * it stays free of buttons and can be picked up with the pointer or, via the
- * keyboard sensor, with space/enter plus the arrow keys. A temporary draft is
- * never draggable: it has no server id to update yet.
+ * One saved post-it in a kanban column. The card surface is the drag handle,
+ * so it can be picked up with the pointer or, via the keyboard sensor, with
+ * space/enter plus the arrow keys. The edit button is a sibling of that
+ * surface: it never starts a drag and double-clicking the card opens the
+ * same editor. A temporary draft is never draggable: it has no server id to
+ * update yet.
  */
-export function KanbanCard({ postit }: KanbanCardProps) {
+export function KanbanCard({ postit, onEdit }: KanbanCardProps) {
   const isTemporary = postit.id.startsWith("temporary-")
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: postit.id,
@@ -110,19 +115,38 @@ export function KanbanCard({ postit }: KanbanCardProps) {
 
   return (
     <li
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
       data-testid="kanban-card"
       data-postit-id={postit.id}
-      aria-label={`${label} (${STATUS_LABELS[postit.status]}). Press space to move between columns.`}
-      className={cn(
-        "touch-none rounded-lg outline-none select-none",
-        "cursor-grab focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        isDragging && "cursor-grabbing opacity-40",
-      )}
+      className="relative"
     >
-      <KanbanCardSurface postit={postit} />
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit makes this surface focusable and keyboard-operable, and sets role="button" via its attributes. */}
+      {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: dnd-kit spreads role="button" onto this surface at runtime. */}
+      <div
+        ref={setNodeRef}
+        {...attributes}
+        {...listeners}
+        onDoubleClick={() => onEdit?.(postit)}
+        aria-label={`${label} (${STATUS_LABELS[postit.status]}). Press space to move between columns.`}
+        className={cn(
+          "touch-none rounded-lg outline-none select-none",
+          "cursor-grab focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          isDragging && "cursor-grabbing opacity-40",
+        )}
+      >
+        {/* Right padding keeps the text clear of the edit button. */}
+        <KanbanCardSurface postit={postit} className="pr-9" />
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Edit post-it"
+        data-testid="kanban-card-edit"
+        onClick={() => onEdit?.(postit)}
+        className="absolute top-2 right-2 text-slate-600 hover:bg-black/5 hover:text-slate-900"
+      >
+        <Pencil aria-hidden="true" />
+      </Button>
     </li>
   )
 }
