@@ -86,6 +86,17 @@ async function dragCardToColumn(
   await expect(page.getByTestId("kanban-drag-overlay")).toHaveCount(0)
 }
 
+/**
+ * Maakt een post-it op het whiteboard en schakelt daarna naar de
+ * kanban-weergave, waar de kaart direct zichtbaar is.
+ */
+async function openKanbanWithPostIt(page: Page, boardId: string, text: string) {
+  await createPostIt(page, boardId, text)
+  await page.getByRole("button", { name: "Kanban view" }).click()
+  await expect(page.getByTestId("kanban-board")).toBeVisible()
+  await expect(page.getByTestId("kanban-card")).toHaveCount(1)
+}
+
 test.describe("Kanban-weergave", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
@@ -390,5 +401,235 @@ test.describe("Kanban-weergave", () => {
     ).toHaveCount(1)
     await expect(page.getByTestId("kanban-count-TODO")).toHaveText("1")
     expect(patchRequests).toBe(0)
+  })
+})
+
+test.describe("Kanban post-it bewerken", () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test("opent de bewerkdialoog met de bewerkknop en met een dubbelklik", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await openKanbanWithPostIt(page, boardId, "Te bewerken kaart")
+
+    const dialog = page.getByTestId("kanban-postit-dialog")
+    await page.getByTestId("kanban-card-edit").click()
+    await expect(dialog).toBeVisible()
+    await expect(page.getByTestId("kanban-postit-content")).toHaveValue(
+      "Te bewerken kaart",
+    )
+    await page.keyboard.press("Escape")
+    await expect(dialog).toHaveCount(0)
+
+    // Een dubbelklik op de kaart opent dezelfde dialoog.
+    await page.getByTestId("kanban-card").dblclick()
+    await expect(dialog).toBeVisible()
+    await expect(page.getByTestId("kanban-postit-title")).toHaveValue("")
+    await expect(page.getByTestId("kanban-postit-content")).toHaveValue(
+      "Te bewerken kaart",
+    )
+  })
+
+  test("bewerkt alle velden en behoudt de wijzigingen na herladen", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await openKanbanWithPostIt(page, boardId, "Oude inhoud")
+
+    const dialog = page.getByTestId("kanban-postit-dialog")
+    await page.getByTestId("kanban-card-edit").click()
+    await expect(dialog).toBeVisible()
+
+    await page.getByTestId("kanban-postit-title").fill("Bijgewerkte kaart")
+    await page.getByTestId("kanban-postit-content").fill("Nieuwe inhoud")
+
+    await page.getByTestId("kanban-postit-status-select").click()
+    await page.getByRole("option", { name: "DONE" }).click()
+    await expect(page.getByTestId("kanban-postit-status-select")).toContainText(
+      "DONE",
+    )
+
+    await page.getByTestId("kanban-postit-priority-select").click()
+    await page.getByRole("option", { name: "HIGH" }).click()
+    await expect(
+      page.getByTestId("kanban-postit-priority-select"),
+    ).toContainText("HIGH")
+
+    await page.getByTestId("kanban-postit-due-date").fill("2026-12-31")
+
+    const blueSwatch = page.getByTestId("kanban-postit-color-blue")
+    await blueSwatch.click()
+    await expect(blueSwatch).toHaveAttribute("aria-pressed", "true")
+    await expect(
+      page.getByTestId("kanban-postit-color-yellow"),
+    ).toHaveAttribute("aria-pressed", "false")
+
+    const patchResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+    await page.getByTestId("kanban-postit-save").click()
+    const patchResponse = await patchResponsePromise
+    expect(patchResponse.status()).toBe(200)
+    // Precies de bewerkte velden gaan mee, zonder de positie op het whiteboard.
+    expect(patchResponse.request().postDataJSON()).toEqual({
+      title: "Bijgewerkte kaart",
+      content: "Nieuwe inhoud",
+      color: "#BFDBFE",
+      status: "DONE",
+      priority: "HIGH",
+      due_date: "2026-12-31",
+    })
+    await expect(dialog).toHaveCount(0)
+
+    // De kaart staat meteen in de kolom van de nieuwe status.
+    const doneColumn = page.getByTestId("kanban-column-DONE")
+    await expect(doneColumn.getByTestId("kanban-card")).toHaveCount(1)
+    await expect(doneColumn).toContainText("Bijgewerkte kaart")
+    await expect(doneColumn).toContainText("Nieuwe inhoud")
+    await expect(doneColumn).toContainText("HIGH")
+    await expect(doneColumn).toContainText("31 Dec")
+    await expect(doneColumn.getByTestId("kanban-card-surface")).toHaveCSS(
+      "background-color",
+      "rgb(191, 219, 254)",
+    )
+    await expect(page.getByTestId("kanban-count-DONE")).toHaveText("1")
+    await expect(page.getByTestId("kanban-count-TODO")).toHaveText("0")
+    await expect(page.getByTestId("kanban-empty-TODO")).toBeVisible()
+
+    // Na herladen komen alle wijzigingen terug uit de backend.
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    expect((await getResponsePromise).status()).toBe(200)
+    await expect(page.getByTestId("whiteboard-stage")).toBeVisible()
+    await page.getByRole("button", { name: "Kanban view" }).click()
+
+    const reloadedColumn = page.getByTestId("kanban-column-DONE")
+    await expect(reloadedColumn.getByTestId("kanban-card")).toHaveCount(1)
+    await expect(reloadedColumn).toContainText("Bijgewerkte kaart")
+    await expect(reloadedColumn).toContainText("Nieuwe inhoud")
+    await expect(reloadedColumn).toContainText("HIGH")
+    await expect(reloadedColumn).toContainText("31 Dec")
+    await expect(reloadedColumn.getByTestId("kanban-card-surface")).toHaveCSS(
+      "background-color",
+      "rgb(191, 219, 254)",
+    )
+    await expect(page.getByTestId("kanban-count-DONE")).toHaveText("1")
+  })
+
+  test("annuleert bewerken zonder PATCH te versturen", async ({ page }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await openKanbanWithPostIt(page, boardId, "Blijft ongewijzigd")
+
+    let patchRequests = 0
+    page.on("request", (request) => {
+      if (
+        request.method() === "PATCH" &&
+        request.url().includes(`/api/v1/boards/${boardId}/postits/`)
+      ) {
+        patchRequests += 1
+      }
+    })
+
+    const dialog = page.getByTestId("kanban-postit-dialog")
+    await page.getByTestId("kanban-card-edit").click()
+    await expect(dialog).toBeVisible()
+    await page.getByTestId("kanban-postit-title").fill("Niet opgeslagen")
+    await page.getByRole("button", { name: "Cancel" }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(page.getByTestId("kanban-card")).not.toContainText(
+      "Niet opgeslagen",
+    )
+
+    // Escape gooit de wijzigingen ook weg en toont weer de oorspronkelijke
+    // waarden bij een volgend bezoek.
+    await page.getByTestId("kanban-card-edit").click()
+    await expect(dialog).toBeVisible()
+    await expect(page.getByTestId("kanban-postit-title")).toHaveValue("")
+    await page.getByTestId("kanban-postit-content").fill("Ook niet opgeslagen")
+    await page.keyboard.press("Escape")
+    await expect(dialog).toHaveCount(0)
+    await expect(page.getByTestId("kanban-card")).toContainText(
+      "Blijft ongewijzigd",
+    )
+    await expect(page.getByTestId("kanban-count-TODO")).toHaveText("1")
+
+    expect(patchRequests).toBe(0)
+  })
+
+  test("verwijdert een post-it vanuit de bewerkdialoog met bevestiging", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await openKanbanWithPostIt(page, boardId, "Te verwijderen kaart")
+
+    let deleteRequests = 0
+    page.on("request", (request) => {
+      if (
+        request.method() === "DELETE" &&
+        request.url().includes(`/api/v1/boards/${boardId}/postits/`)
+      ) {
+        deleteRequests += 1
+      }
+    })
+
+    const editDialog = page.getByTestId("kanban-postit-dialog")
+    await page.getByTestId("kanban-card-edit").click()
+    await expect(editDialog).toBeVisible()
+    await page.getByTestId("kanban-postit-delete").click()
+
+    // De bewerkdialoog sluit en de bevestiging opent in een eigen dialoog.
+    await expect(editDialog).toHaveCount(0)
+    const deleteDialog = page.getByTestId("kanban-delete-dialog")
+    await expect(deleteDialog).toBeVisible()
+    await expect(deleteDialog).toContainText("Delete post-it")
+    await expect(deleteDialog).toContainText("This action cannot be undone.")
+
+    // Annuleren laat de post-it staan.
+    await deleteDialog.getByRole("button", { name: "Cancel" }).click()
+    await expect(deleteDialog).toHaveCount(0)
+    await expect(page.getByTestId("kanban-card")).toHaveCount(1)
+    expect(deleteRequests).toBe(0)
+
+    await page.getByTestId("kanban-card-edit").click()
+    await page.getByTestId("kanban-postit-delete").click()
+    await expect(deleteDialog).toBeVisible()
+
+    const deleteResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+    await page.getByTestId("kanban-delete-confirm").click()
+    expect((await deleteResponsePromise).status()).toBe(200)
+
+    await expect(deleteDialog).toHaveCount(0)
+    await expect(page.getByTestId("kanban-card")).toHaveCount(0)
+    await expect(page.getByTestId("kanban-count-TODO")).toHaveText("0")
+    await expect(page.getByTestId("kanban-empty-TODO")).toBeVisible()
+
+    // Na herladen blijft de post-it verwijderd.
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    expect((await getResponsePromise).status()).toBe(200)
+    await expect(page.getByTestId("whiteboard-stage")).toBeVisible()
+    await page.getByRole("button", { name: "Kanban view" }).click()
+    await expect(page.getByTestId("kanban-card")).toHaveCount(0)
+    await expect(page.getByTestId("kanban-count-TODO")).toHaveText("0")
+    await expect(page.getByTestId("kanban-empty-TODO")).toBeVisible()
   })
 })
