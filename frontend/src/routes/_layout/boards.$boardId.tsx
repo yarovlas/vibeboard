@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { Table2 } from "lucide-react"
 import { Suspense } from "react"
 
+import { KanbanBoard } from "@/components/Boards/KanbanBoard"
 import { WhiteboardCanvas } from "@/components/Boards/WhiteboardCanvas"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useBoardView } from "@/hooks/board-view"
@@ -54,7 +55,9 @@ function BoardContent() {
           {board.updated_at ? new Date(board.updated_at).toLocaleString() : ""}
         </p>
       </div>
-      {view === "table" ? <TableView /> : <WhiteboardView boardId={boardId} />}
+      {view === "whiteboard" && <WhiteboardView boardId={boardId} />}
+      {view === "kanban" && <KanbanBoard boardId={boardId} />}
+      {view === "table" && <TableView />}
     </div>
   )
 }
