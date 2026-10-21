@@ -160,7 +160,20 @@ export type PostItCreate = {
      * Color
      */
     color?: string;
+    status?: PostItStatus;
+    priority?: PostItPriority | null;
+    /**
+     * Due Date
+     */
+    due_date?: string | null;
 };
+
+/**
+ * PostItPriority
+ *
+ * Urgency of a post-it task; None means no priority set.
+ */
+export type PostItPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 
 /**
  * PostItPublic
@@ -186,6 +199,12 @@ export type PostItPublic = {
      * Color
      */
     color?: string;
+    status?: PostItStatus;
+    priority?: PostItPriority | null;
+    /**
+     * Due Date
+     */
+    due_date?: string | null;
     /**
      * Id
      */
@@ -195,6 +214,13 @@ export type PostItPublic = {
      */
     board_id: string;
 };
+
+/**
+ * PostItStatus
+ *
+ * Lifecycle of a post-it task.
+ */
+export type PostItStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 
 /**
  * PostItUpdate
@@ -220,6 +246,12 @@ export type PostItUpdate = {
      * Color
      */
     color?: string | null;
+    status?: PostItStatus | null;
+    priority?: PostItPriority | null;
+    /**
+     * Due Date
+     */
+    due_date?: string | null;
 };
 
 /**

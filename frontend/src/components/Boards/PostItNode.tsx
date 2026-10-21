@@ -1,7 +1,7 @@
 import type { KonvaEventObject } from "konva/lib/Node"
 import { Group, Rect, Text } from "react-konva"
 
-import type { PostItPublic } from "@/client"
+import type { PostItPriority, PostItPublic, PostItStatus } from "@/client"
 import { CanvasDeleteButton } from "@/components/Boards/CanvasDeleteButton"
 import { useFadeIn } from "@/hooks/useMountAnimation"
 
@@ -19,6 +19,48 @@ export const POSTIT_COLORS = [
 const POSTIT_TEXT = "#1F2937"
 const POSTIT_MUTED_TEXT = "#92400E"
 
+export const STATUS_LABELS: Record<PostItStatus, string> = {
+  TODO: "TODO",
+  IN_PROGRESS: "IN PROGRESS",
+  DONE: "DONE",
+}
+
+const STATUS_STYLES: Record<PostItStatus, { fill: string; text: string }> = {
+  TODO: { fill: "#64748B", text: "#FFFFFF" },
+  IN_PROGRESS: { fill: "#2563EB", text: "#FFFFFF" },
+  DONE: { fill: "#16A34A", text: "#FFFFFF" },
+}
+
+// Left-edge urgency strip; a post-it without priority shows no strip.
+const PRIORITY_STRIP_COLORS: Record<PostItPriority, string> = {
+  LOW: "#94A3B8",
+  MEDIUM: "#FBBF24",
+  HIGH: "#F87171",
+}
+const PRIORITY_STRIP_WIDTH = 6
+
+// Due-date badge in the bottom-left corner, styled like the folder badge.
+const DUE_BADGE = {
+  height: 20,
+  radius: 10,
+  fontSize: 11,
+  paddingX: 8,
+} as const
+
+/**
+ * Render an ISO date (YYYY-MM-DD) as a compact badge, e.g. "3 nov".
+ * Parsed as a UTC date so timezones never shift the calendar day.
+ */
+function formatDueDate(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return isoDate
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  })
+}
+
 export type BoardPostIt = {
   id: string
   board_id: string
@@ -27,6 +69,9 @@ export type BoardPostIt = {
   x: number
   y: number
   color: string
+  status: PostItStatus
+  priority: PostItPriority | null
+  due_date: string | null
 }
 
 export function normalizePostIt(postit: PostItPublic): BoardPostIt {
@@ -38,6 +83,9 @@ export function normalizePostIt(postit: PostItPublic): BoardPostIt {
     x: postit.x ?? 0,
     y: postit.y ?? 0,
     color: postit.color ?? POSTIT_DEFAULT_COLOR,
+    status: postit.status ?? "TODO",
+    priority: postit.priority ?? null,
+    due_date: postit.due_date ?? null,
   }
 }
 
@@ -51,6 +99,8 @@ interface PostItNodeProps {
   onEdit: (postit: BoardPostIt) => void
   onDelete: (postit: BoardPostIt) => void
   onSelect?: (postit: BoardPostIt) => void
+  /** Hover drives the DOM tooltip that cannot live inside the Konva stage. */
+  onHoverChange?: (postit: BoardPostIt, hovered: boolean) => void
   onDragEnd?: (postit: BoardPostIt, position: { x: number; y: number }) => void
   dragBoundFunc?: (position: { x: number; y: number }) => {
     x: number
@@ -67,6 +117,7 @@ export function PostItNode({
   onEdit,
   onDelete,
   onSelect,
+  onHoverChange,
   onDragEnd,
   dragBoundFunc,
 }: PostItNodeProps) {
@@ -77,6 +128,12 @@ export function PostItNode({
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
     : postit.content
+
+  const statusLabel = STATUS_LABELS[postit.status] ?? "TODO"
+  const statusStyle = STATUS_STYLES[postit.status] ?? STATUS_STYLES.TODO
+  // Uppercase 11px letters need ~7.6px each; measure generously so Konva's
+  // fixed-width Text never clips the label (was clipping "IN PROGRESS").
+  const statusPillWidth = Math.ceil(statusLabel.length * 7.6) + 18
 
   const handleDoubleClick = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
@@ -98,6 +155,16 @@ export function PostItNode({
     onDragEnd?.(postit, { x: event.target.x(), y: event.target.y() })
   }
 
+  const handleMouseEnter = (event: KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true
+    onHoverChange?.(postit, true)
+  }
+
+  const handleMouseLeave = (event: KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true
+    onHoverChange?.(postit, false)
+  }
+
   return (
     <Group
       x={postit.x}
@@ -108,6 +175,8 @@ export function PostItNode({
       onClick={handleClick}
       onTap={handleTap}
       onDblClick={handleDoubleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onDragEnd={handleDragEnd}
     >
       <Group
@@ -128,6 +197,15 @@ export function PostItNode({
           shadowOffsetY={4}
           perfectDrawEnabled={false}
         />
+        {!isEditing && postit.priority && (
+          <Rect
+            width={PRIORITY_STRIP_WIDTH}
+            height={POSTIT_HEIGHT}
+            fill={PRIORITY_STRIP_COLORS[postit.priority]}
+            cornerRadius={[10, 0, 0, 10]}
+            listening={false}
+          />
+        )}
         {isSelected && (
           <Rect
             width={POSTIT_WIDTH}
@@ -140,11 +218,30 @@ export function PostItNode({
           />
         )}
         {!isEditing && (
+          <Group x={12} y={10} listening={false}>
+            <Rect
+              width={statusPillWidth}
+              height={18}
+              cornerRadius={9}
+              fill={statusStyle.fill}
+            />
+            <Text
+              x={8}
+              y={3}
+              width={statusPillWidth - 16}
+              text={statusLabel}
+              fontSize={11}
+              fill={statusStyle.text}
+              wrap="none"
+            />
+          </Group>
+        )}
+        {!isEditing && (
           <Text
             x={16}
-            y={16}
+            y={38}
             width={POSTIT_WIDTH - 32}
-            height={POSTIT_HEIGHT - 32}
+            height={POSTIT_HEIGHT - 38 - 16}
             text={text || "Write a thought..."}
             fontSize={16}
             lineHeight={1.35}
@@ -159,6 +256,25 @@ export function PostItNode({
             x={POSTIT_WIDTH - 36}
             y={8}
             onDelete={() => onDelete(postit)}
+          />
+        )}
+        {!isEditing && postit.due_date && (
+          <Text
+            x={12}
+            y={POSTIT_HEIGHT - DUE_BADGE.height - 10}
+            width={
+              formatDueDate(postit.due_date).length * 6.4 +
+              DUE_BADGE.paddingX * 2
+            }
+            height={DUE_BADGE.height}
+            align="center"
+            verticalAlign="middle"
+            text={formatDueDate(postit.due_date)}
+            fontSize={DUE_BADGE.fontSize}
+            fill="#7C2D12"
+            background="rgba(255, 255, 255, 0.65)"
+            cornerRadius={DUE_BADGE.radius}
+            listening={false}
           />
         )}
       </Group>

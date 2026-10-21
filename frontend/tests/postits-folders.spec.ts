@@ -538,7 +538,23 @@ test.describe("Post-its groeperen in mappen", () => {
     )
     const editor = page.getByRole("textbox", { name: "Folder name" })
     await expect(editor).toBeVisible()
-    await editor.fill("Sprint ideeen")
+    // The editor must cover the folder slot exactly, not sit off to the
+    // top-left of it.
+    const canvasBox = await page
+      .getByTestId("whiteboard-stage")
+      .locator("canvas")
+      .first()
+      .boundingBox()
+    const editorBox = await editor.boundingBox()
+    if (!canvasBox || !editorBox) throw new Error("Missing bounding box")
+    expect(editorBox.x).toBeCloseTo(canvasBox.x + FOLDER_SLOT_X, 0)
+    expect(editorBox.y).toBeCloseTo(canvasBox.y + FOLDER_SLOT_Y, 0)
+    expect(editorBox.width).toBeCloseTo(220, 0)
+    expect(editorBox.height).toBeCloseTo(180, 0)
+
+    // Type character by character: re-selecting on every render would leave
+    // only the last character.
+    await editor.pressSequentially("Sprint ideeen")
     await expect(editor).toHaveValue("Sprint ideeen")
     await editor.blur()
     await expect(editor).toHaveCount(0)

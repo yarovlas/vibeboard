@@ -11,6 +11,7 @@ import { BoardsService, PostitsService, StrokesService } from "@/client"
 import { BoardToolbar } from "@/components/Boards/BoardToolbar"
 import { FolderNameEditor } from "@/components/Boards/FolderNameEditor"
 import { FolderNode } from "@/components/Boards/FolderNode"
+import { PostItMetaEditor } from "@/components/Boards/PostItMetaEditor"
 import {
   type BoardPostIt,
   normalizePostIt,
@@ -19,6 +20,7 @@ import {
   POSTIT_WIDTH,
   PostItNode,
 } from "@/components/Boards/PostItNode"
+import { PostItTooltip } from "@/components/Boards/PostItTooltip"
 import {
   type BoardStroke,
   normalizeStroke,
@@ -64,6 +66,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const { data: board } = useSuspenseQuery(getBoardQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [penColor, setPenColor] = useState("#111827")
   const [penWidth, setPenWidth] = useState(4)
@@ -327,6 +330,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           x: draft.x,
           y: draft.y,
           color: draft.color,
+          status: draft.status,
+          priority: draft.priority,
+          due_date: draft.due_date,
         },
         path: { board_id: boardId },
       }),
@@ -402,6 +408,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           x: draft.x,
           y: draft.y,
           color: draft.color,
+          status: draft.status,
+          priority: draft.priority,
+          due_date: draft.due_date,
         },
         path: { board_id: boardId, id: draft.id },
       }),
@@ -562,6 +571,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     })
   })()
   const collapsedIds = new Set(folders.flatMap((folder) => folder.ids))
+  // Hidden folder members are not rendered, so they cannot stay hovered.
+  const hoveredPostIt = postits.find(
+    (postit) => postit.id === hoveredId && !collapsedIds.has(postit.id),
+  )
   const renamingFolder =
     renamingColor !== null
       ? folders.find((folder) => folder.color === renamingColor)
@@ -782,6 +795,30 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     setSelectedIds([postit.id])
   }
 
+  const changeMeta = (
+    postit: BoardPostIt,
+    patch: Partial<Pick<BoardPostIt, "status" | "priority" | "due_date">>,
+  ) => {
+    // Take the freshest version: the render-scope copy can predate the last
+    // keystroke, exactly like commitDraft does. A draft lives only in the
+    // cache until it is committed, so its metadata is saved with the rest.
+    const fresh =
+      queryClient
+        .getQueryData<BoardPostIt[]>(queryKeys.boards.postits(boardId))
+        ?.find((item) => item.id === postit.id) ?? postit
+    const unchanged = Object.entries(patch).every(
+      ([key, value]) => fresh[key as keyof BoardPostIt] === value,
+    )
+    if (unchanged) return
+    const next = { ...fresh, ...patch }
+    queryClient.setQueryData<BoardPostIt[]>(
+      queryKeys.boards.postits(boardId),
+      (current) => current?.map((item) => (item.id === fresh.id ? next : item)),
+    )
+    if (fresh.id.startsWith("temporary-")) return
+    updateMutation.mutate(next)
+  }
+
   const recolorSelected = (color: string) => {
     // While a new post-it is being created, the palette paints only the
     // draft: selected saved post-its are left untouched, so choosing the new
@@ -879,6 +916,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
   const editPostIt = (postit: BoardPostIt) => {
     handledIds.current.delete(postit.id)
+    setHoveredId(null)
     setEditingId(postit.id)
   }
 
@@ -918,6 +956,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       x: clampPosition(position, canvasSize).x,
       y: clampPosition(position, canvasSize).y,
       color: POSTIT_DEFAULT_COLOR,
+      status: "TODO",
+      priority: null,
+      due_date: null,
     }
     queryClient.setQueryData<BoardPostIt[]>(
       queryKeys.boards.postits(boardId),
@@ -1117,6 +1158,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     folder.members[0]?.title || folder.members[0]?.content || ""
                   }
                   name={folderNames[folder.color] ?? ""}
+                  hideBadge={renamingColor === folder.color}
                   enterDelay={Math.min(index * 0.07, 0.35)}
                   draggable={!isDrawing}
                   dragBoundFunc={(position) =>
@@ -1151,6 +1193,13 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                       if (!p.id.startsWith("temporary-")) setDeleteCandidate(p)
                     }}
                     onSelect={(p) => selectPostIt(p)}
+                    onHoverChange={(p, hovered) => {
+                      if (isDrawing || editingId) {
+                        setHoveredId(null)
+                        return
+                      }
+                      setHoveredId(hovered ? p.id : null)
+                    }}
                     onDragEnd={(p, position) => movePostIt(p, position)}
                     dragBoundFunc={(position) =>
                       clampPosition(position, canvasSize)
@@ -1179,6 +1228,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           </Stage>
         )}
 
+        {hoveredPostIt && !editingPostIt && !isDrawing && (
+          <PostItTooltip postit={hoveredPostIt} open />
+        )}
+
         {postits.length === 0 && !editingPostIt && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-center">
             <div>
@@ -1196,6 +1249,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             aria-label="Post-it text"
             className="absolute z-10 resize-none rounded-[10px] border border-amber-300 p-4 text-sm leading-relaxed text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
             data-testid="post-it-editor"
+            data-postit-editor-ui
             placeholder="Write a thought..."
             spellCheck
             style={{
@@ -1206,7 +1260,16 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
               backgroundColor: editingPostIt.color || POSTIT_DEFAULT_COLOR,
             }}
             value={editingPostIt.content}
-            onBlur={() => commitDraft(editingPostIt)}
+            onBlur={(event) => {
+              // Focus hopping to the metadata panel (or its select menu)
+              // keeps the editor open; only a real leave saves the draft.
+              const target = event.relatedTarget
+              const staysInEditor =
+                target instanceof Element &&
+                (target.closest("[data-postit-editor-ui]") !== null ||
+                  target.closest("[data-slot='select-content']") !== null)
+              if (!staysInEditor) commitDraft(editingPostIt)
+            }}
             onChange={(event) =>
               updateDraftContent(editingPostIt.id, event.target.value)
             }
@@ -1224,12 +1287,33 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           />
         )}
 
+        {editingPostIt && (
+          <PostItMetaEditor
+            key={`meta-${editingPostIt.id}`}
+            status={editingPostIt.status}
+            priority={editingPostIt.priority}
+            dueDate={editingPostIt.due_date}
+            x={editingPostIt.x}
+            y={editingPostIt.y}
+            onStatusChange={(status) => changeMeta(editingPostIt, { status })}
+            onPriorityChange={(priority) =>
+              changeMeta(editingPostIt, { priority })
+            }
+            onDueDateChange={(due_date) =>
+              changeMeta(editingPostIt, { due_date })
+            }
+            onEditorLeave={() => commitDraft(editingPostIt)}
+            onRestoreFocus={() => editorRef.current?.focus()}
+          />
+        )}
+
         <ul className="sr-only" aria-label="Post-its on this whiteboard">
           {postits.map((postit) => (
             <li key={getPostItKey(postit)}>
               {postit.title
                 ? `${postit.title}: ${postit.content}`
                 : postit.content || "Empty post-it"}
+              {` (status: ${postit.status})`}
             </li>
           ))}
         </ul>

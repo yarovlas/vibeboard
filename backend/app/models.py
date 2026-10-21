@@ -1,14 +1,32 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from enum import StrEnum
 
 from pydantic import EmailStr
 from sqlalchemy import Column, DateTime, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel.sql.sqltypes import AutoString
 
 
 def get_datetime_utc() -> datetime:
     return datetime.now(UTC)
+
+
+class PostItStatus(StrEnum):
+    """Lifecycle of a post-it task."""
+
+    TODO = "TODO"
+    IN_PROGRESS = "IN_PROGRESS"
+    DONE = "DONE"
+
+
+class PostItPriority(StrEnum):
+    """Urgency of a post-it task; None means no priority set."""
+
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
 
 
 # Shared properties
@@ -129,6 +147,22 @@ class PostItBase(SQLModel):
     x: float = 0.0
     y: float = 0.0
     color: str = Field(default="#FEF3C7", max_length=32)
+    status: PostItStatus = Field(
+        default=PostItStatus.TODO,
+        sa_column=Column(
+            AutoString(length=16),
+            nullable=False,
+            server_default="TODO",
+        ),
+    )
+    priority: PostItPriority | None = Field(
+        default=None,
+        sa_column=Column(
+            AutoString(length=16),
+            nullable=True,
+        ),
+    )
+    due_date: date | None = None
 
 
 # Properties to receive on post-it creation
@@ -143,6 +177,9 @@ class PostItUpdate(SQLModel):
     x: float | None = None
     y: float | None = None
     color: str | None = Field(default=None, max_length=32)
+    status: PostItStatus | None = None
+    priority: PostItPriority | None = None
+    due_date: date | None = None
 
 
 # Database model, database table inferred from class name

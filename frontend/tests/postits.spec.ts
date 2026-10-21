@@ -172,7 +172,13 @@ test.describe("Post-it verwijderen", () => {
     await page.getByRole("button", { name: "Add post-it" }).click()
     const editor = page.getByRole("textbox", { name: "Post-it text" })
     await editor.fill("Te verwijderen")
+    const createPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
     await editor.blur()
+    expect((await createPromise).status()).toBe(200)
     await expect(editor).toHaveCount(0)
 
     // Click the delete button on the post-it
@@ -207,13 +213,20 @@ test.describe("Post-it verwijderen", () => {
 
   test("annuleert verwijderen via de Annuleren-knop", async ({ page }) => {
     await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
 
     // Create a post-it
     await page.getByRole("button", { name: "Add post-it" }).click()
     const editor = page.getByRole("textbox", { name: "Post-it text" })
     await editor.fill("Blijft bestaan")
     await expect(editor).toHaveValue("Blijft bestaan")
+    const createPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
     await editor.blur()
+    expect((await createPromise).status()).toBe(200)
     await expect(editor).toHaveCount(0)
 
     // Click the delete button
