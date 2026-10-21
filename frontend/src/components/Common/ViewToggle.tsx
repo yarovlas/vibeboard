@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 /**
  * Segmented control shown in the header on whiteboard pages to switch
- * between the whiteboard, kanban and table views. Centered over the whole
+ * between the whiteboard and kanban views. Centered over the whole
  * header; the active option is a neutral pill without brand colours.
  */
 export function ViewToggle() {
@@ -42,20 +42,6 @@ export function ViewToggle() {
         )}
       >
         Kanban view
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        aria-pressed={view === "table"}
-        onClick={() => setView("table")}
-        className={cn(
-          "h-8 px-3 text-sm",
-          view === "table"
-            ? "bg-background font-medium shadow-sm hover:bg-background hover:text-foreground"
-            : "text-muted-foreground hover:bg-transparent hover:text-foreground",
-        )}
-      >
-        Table view
       </Button>
     </fieldset>
   )

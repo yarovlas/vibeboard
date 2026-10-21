@@ -1,6 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { Table2 } from "lucide-react"
 import { Suspense } from "react"
 
 import { KanbanBoard } from "@/components/Boards/KanbanBoard"
@@ -24,23 +23,6 @@ function WhiteboardView({ boardId }: { boardId: string }) {
   return <WhiteboardCanvas boardId={boardId} />
 }
 
-function TableView() {
-  return (
-    <div className="flex min-h-[60vh] flex-1 items-center justify-center rounded-xl border-2 border-dashed bg-muted/20">
-      <div className="text-center">
-        <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-muted">
-          <Table2 className="size-5 text-muted-foreground" />
-        </div>
-        <p className="font-medium">Rows with your whiteboard items</p>
-        <p className="text-sm text-muted-foreground">
-          A table with your post-its and drawings will appear here in the next
-          sprints.
-        </p>
-      </div>
-    </div>
-  )
-}
-
 function BoardContent() {
   const { boardId } = Route.useParams()
   const { data: board } = useSuspenseQuery(getBoardQueryOptions(boardId))
@@ -57,7 +39,6 @@ function BoardContent() {
       </div>
       {view === "whiteboard" && <WhiteboardView boardId={boardId} />}
       {view === "kanban" && <KanbanBoard boardId={boardId} />}
-      {view === "table" && <TableView />}
     </div>
   )
 }

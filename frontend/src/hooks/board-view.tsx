@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useContext, useState } from "react"
 
-export type BoardView = "whiteboard" | "kanban" | "table"
+export type BoardView = "whiteboard" | "kanban"
 
 interface BoardViewContextValue {
   view: BoardView

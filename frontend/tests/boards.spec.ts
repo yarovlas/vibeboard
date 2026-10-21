@@ -132,25 +132,3 @@ test.describe("Whiteboard as home", () => {
     await expect(page.getByText("Empty workspace")).toBeVisible()
   })
 })
-
-test.describe("View switcher", () => {
-  test.use({ storageState: { cookies: [], origins: [] } })
-
-  test("Can switch between whiteboard and table view", async ({ page }) => {
-    const email = randomEmail()
-    const password = randomPassword()
-    await createUser({ email, password })
-    await logInUser(page, email, password)
-
-    await expect(page.getByText("Empty workspace")).toBeVisible()
-
-    await page.getByRole("button", { name: "Table view" }).click()
-    await expect(
-      page.getByText("Rows with your whiteboard items"),
-    ).toBeVisible()
-    await expect(page.getByText("Empty workspace")).not.toBeVisible()
-
-    await page.getByRole("button", { name: "Whiteboard view" }).click()
-    await expect(page.getByText("Empty workspace")).toBeVisible()
-  })
-})
