@@ -32,7 +32,7 @@ const STATUS_STYLES: Record<PostItStatus, { fill: string; text: string }> = {
 }
 
 // Left-edge urgency strip; a post-it without priority shows no strip.
-const PRIORITY_STRIP_COLORS: Record<PostItPriority, string> = {
+export const PRIORITY_COLORS: Record<PostItPriority, string> = {
   LOW: "#94A3B8",
   MEDIUM: "#FBBF24",
   HIGH: "#F87171",
@@ -51,7 +51,7 @@ const DUE_BADGE = {
  * Render an ISO date (YYYY-MM-DD) as a compact badge, e.g. "3 nov".
  * Parsed as a UTC date so timezones never shift the calendar day.
  */
-function formatDueDate(isoDate: string): string {
+export function formatDueDate(isoDate: string): string {
   const date = new Date(`${isoDate}T00:00:00Z`)
   if (Number.isNaN(date.getTime())) return isoDate
   return date.toLocaleDateString("en-GB", {
@@ -201,7 +201,7 @@ export function PostItNode({
           <Rect
             width={PRIORITY_STRIP_WIDTH}
             height={POSTIT_HEIGHT}
-            fill={PRIORITY_STRIP_COLORS[postit.priority]}
+            fill={PRIORITY_COLORS[postit.priority]}
             cornerRadius={[10, 0, 0, 10]}
             listening={false}
           />
