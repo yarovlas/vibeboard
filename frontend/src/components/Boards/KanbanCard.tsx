@@ -1,3 +1,4 @@
+import { useDraggable } from "@dnd-kit/core"
 import { CalendarDays } from "lucide-react"
 
 import {
@@ -5,28 +6,38 @@ import {
   formatDueDate,
   POSTIT_DEFAULT_COLOR,
   PRIORITY_COLORS,
+  STATUS_LABELS,
 } from "@/components/Boards/PostItNode"
 import { cn } from "@/lib/utils"
 
-interface KanbanCardProps {
+interface KanbanCardSurfaceProps {
   postit: BoardPostIt
+  className?: string
 }
 
 /**
- * One saved post-it in a kanban column. Mirrors the whiteboard card: same
- * colour, optional title above the content and the priority/due-date badges.
- * Text is clamped so long notes never stretch a column beyond the viewport.
+ * Presentational post-it card, shared by the draggable column card and the
+ * drag overlay. It renders a `div` (never a list item) so the overlay can be
+ * rendered outside the column list without producing invalid markup. Mirrors
+ * the whiteboard card: same colour, optional title above the content and the
+ * priority/due-date badges. Text is clamped so long notes never stretch a
+ * column beyond the viewport.
  */
-export function KanbanCard({ postit }: KanbanCardProps) {
+export function KanbanCardSurface({
+  postit,
+  className,
+}: KanbanCardSurfaceProps) {
   const hasTitle = postit.title.trim() !== ""
   const hasContent = postit.content.trim() !== ""
   const hasText = hasTitle || hasContent
 
   return (
-    <li
-      data-testid="kanban-card"
-      data-postit-id={postit.id}
-      className="min-w-0 rounded-lg border border-black/5 p-3 text-slate-900 shadow-sm"
+    <div
+      data-testid="kanban-card-surface"
+      className={cn(
+        "min-w-0 rounded-lg border border-black/5 p-3 text-slate-900 shadow-sm",
+        className,
+      )}
       style={{ backgroundColor: postit.color || POSTIT_DEFAULT_COLOR }}
     >
       {hasTitle && (
@@ -74,6 +85,44 @@ export function KanbanCard({ postit }: KanbanCardProps) {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+interface KanbanCardProps {
+  postit: BoardPostIt
+}
+
+/**
+ * One saved post-it in a kanban column. The whole card is the drag handle, so
+ * it stays free of buttons and can be picked up with the pointer or, via the
+ * keyboard sensor, with space/enter plus the arrow keys. A temporary draft is
+ * never draggable: it has no server id to update yet.
+ */
+export function KanbanCard({ postit }: KanbanCardProps) {
+  const isTemporary = postit.id.startsWith("temporary-")
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: postit.id,
+    disabled: isTemporary,
+    data: { status: postit.status },
+  })
+  const label = postit.title.trim() || postit.content.trim() || "Empty post-it"
+
+  return (
+    <li
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      data-testid="kanban-card"
+      data-postit-id={postit.id}
+      aria-label={`${label} (${STATUS_LABELS[postit.status]}). Press space to move between columns.`}
+      className={cn(
+        "touch-none rounded-lg outline-none select-none",
+        "cursor-grab focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        isDragging && "cursor-grabbing opacity-40",
+      )}
+    >
+      <KanbanCardSurface postit={postit} />
     </li>
   )
 }
