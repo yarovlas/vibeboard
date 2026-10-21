@@ -426,7 +426,6 @@ test.describe("Kanban post-it bewerken", () => {
     // Een dubbelklik op de kaart opent dezelfde dialoog.
     await page.getByTestId("kanban-card").dblclick()
     await expect(dialog).toBeVisible()
-    await expect(page.getByTestId("kanban-postit-title")).toHaveValue("")
     await expect(page.getByTestId("kanban-postit-content")).toHaveValue(
       "Te bewerken kaart",
     )
@@ -443,8 +442,7 @@ test.describe("Kanban post-it bewerken", () => {
     await page.getByTestId("kanban-card-edit").click()
     await expect(dialog).toBeVisible()
 
-    await page.getByTestId("kanban-postit-title").fill("Bijgewerkte kaart")
-    await page.getByTestId("kanban-postit-content").fill("Nieuwe inhoud")
+    await page.getByTestId("kanban-postit-content").fill("Bijgewerkte kaart")
 
     await page.getByTestId("kanban-postit-status-select").click()
     await page.getByRole("option", { name: "DONE" }).click()
@@ -477,8 +475,7 @@ test.describe("Kanban post-it bewerken", () => {
     expect(patchResponse.status()).toBe(200)
     // Precies de bewerkte velden gaan mee, zonder de positie op het whiteboard.
     expect(patchResponse.request().postDataJSON()).toEqual({
-      title: "Bijgewerkte kaart",
-      content: "Nieuwe inhoud",
+      content: "Bijgewerkte kaart",
       color: "#BFDBFE",
       status: "DONE",
       priority: "HIGH",
@@ -490,7 +487,6 @@ test.describe("Kanban post-it bewerken", () => {
     const doneColumn = page.getByTestId("kanban-column-DONE")
     await expect(doneColumn.getByTestId("kanban-card")).toHaveCount(1)
     await expect(doneColumn).toContainText("Bijgewerkte kaart")
-    await expect(doneColumn).toContainText("Nieuwe inhoud")
     await expect(doneColumn).toContainText("HIGH")
     await expect(doneColumn).toContainText("31 Dec")
     await expect(doneColumn.getByTestId("kanban-card-surface")).toHaveCSS(
@@ -515,7 +511,6 @@ test.describe("Kanban post-it bewerken", () => {
     const reloadedColumn = page.getByTestId("kanban-column-DONE")
     await expect(reloadedColumn.getByTestId("kanban-card")).toHaveCount(1)
     await expect(reloadedColumn).toContainText("Bijgewerkte kaart")
-    await expect(reloadedColumn).toContainText("Nieuwe inhoud")
     await expect(reloadedColumn).toContainText("HIGH")
     await expect(reloadedColumn).toContainText("31 Dec")
     await expect(reloadedColumn.getByTestId("kanban-card-surface")).toHaveCSS(
@@ -543,7 +538,7 @@ test.describe("Kanban post-it bewerken", () => {
     const dialog = page.getByTestId("kanban-postit-dialog")
     await page.getByTestId("kanban-card-edit").click()
     await expect(dialog).toBeVisible()
-    await page.getByTestId("kanban-postit-title").fill("Niet opgeslagen")
+    await page.getByTestId("kanban-postit-content").fill("Niet opgeslagen")
     await page.getByRole("button", { name: "Cancel" }).click()
     await expect(dialog).toHaveCount(0)
     await expect(page.getByTestId("kanban-card")).not.toContainText(
@@ -554,7 +549,6 @@ test.describe("Kanban post-it bewerken", () => {
     // waarden bij een volgend bezoek.
     await page.getByTestId("kanban-card-edit").click()
     await expect(dialog).toBeVisible()
-    await expect(page.getByTestId("kanban-postit-title")).toHaveValue("")
     await page.getByTestId("kanban-postit-content").fill("Ook niet opgeslagen")
     await page.keyboard.press("Escape")
     await expect(dialog).toHaveCount(0)

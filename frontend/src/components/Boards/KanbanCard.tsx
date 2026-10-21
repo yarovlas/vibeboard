@@ -20,17 +20,18 @@ interface KanbanCardSurfaceProps {
  * Presentational post-it card, shared by the draggable column card and the
  * drag overlay. It renders a `div` (never a list item) so the overlay can be
  * rendered outside the column list without producing invalid markup. Mirrors
- * the whiteboard card: same colour, optional title above the content and the
- * priority/due-date badges. Text is clamped so long notes never stretch a
- * column beyond the viewport.
+ * the whiteboard card exactly: same colour and one combined text block (the
+ * legacy `title`, when present, is shown above the content but is not edited
+ * anywhere in the UI). Priority and due-date badges follow. Text is clamped so
+ * long notes never stretch a column beyond the viewport.
  */
 export function KanbanCardSurface({
   postit,
   className,
 }: KanbanCardSurfaceProps) {
-  const hasTitle = postit.title.trim() !== ""
-  const hasContent = postit.content.trim() !== ""
-  const hasText = hasTitle || hasContent
+  const text = postit.title.trim()
+    ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
+    : postit.content
 
   return (
     <div
@@ -41,27 +42,11 @@ export function KanbanCardSurface({
       )}
       style={{ backgroundColor: postit.color || POSTIT_DEFAULT_COLOR }}
     >
-      {hasTitle && (
-        <p
-          className={cn(
-            "text-sm font-semibold break-words",
-            hasContent ? "line-clamp-2" : "line-clamp-5",
-          )}
-        >
-          {postit.title}
+      {text ? (
+        <p className="text-sm break-words whitespace-pre-wrap line-clamp-6">
+          {text}
         </p>
-      )}
-      {hasContent && (
-        <p
-          className={cn(
-            "text-sm break-words whitespace-pre-wrap",
-            hasTitle ? "mt-1 line-clamp-4" : "line-clamp-5",
-          )}
-        >
-          {postit.content}
-        </p>
-      )}
-      {!hasText && (
+      ) : (
         <p className="text-sm text-slate-500 italic">Empty post-it</p>
       )}
       {(postit.priority || postit.due_date) && (

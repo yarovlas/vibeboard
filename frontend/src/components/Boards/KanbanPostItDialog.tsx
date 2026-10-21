@@ -12,12 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 /** The editable fields of a post-it, as shown in the kanban dialog. */
 export interface KanbanPostItDraft {
-  title: string
   content: string
   status: PostItStatus
   priority: PostItPriority | null
@@ -47,7 +45,6 @@ export function KanbanPostItDialog({
   onRequestDelete,
 }: KanbanPostItDialogProps) {
   const [draft, setDraft] = useState<KanbanPostItDraft>(() => ({
-    title: postit.title,
     content: postit.content,
     status: postit.status,
     priority: postit.priority,
@@ -75,19 +72,6 @@ export function KanbanPostItDialog({
             Change the details of this post-it and save your changes.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor="kanban-postit-title">
-            Title
-          </label>
-          <Input
-            id="kanban-postit-title"
-            data-testid="kanban-postit-title"
-            maxLength={255}
-            value={draft.title}
-            onChange={(event) => update({ title: event.target.value })}
-          />
-        </div>
 
         <div className="flex flex-col gap-1">
           <label

@@ -224,7 +224,6 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       // post-it on the whiteboard is left untouched.
       PostitsService.updatePostit({
         body: {
-          title: draft.title,
           content: draft.content,
           color: draft.color,
           status: draft.status,
