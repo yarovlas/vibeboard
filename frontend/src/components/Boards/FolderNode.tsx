@@ -35,6 +35,8 @@ interface FolderNodeProps {
   label?: string
   /** Custom group name; shown instead of the label when set. */
   name?: string
+  /** Hide the count badge, e.g. while the name editor covers the folder. */
+  hideBadge?: boolean
   /** Seconds to wait before playing, for staggered entrances. */
   enterDelay?: number
   draggable?: boolean
@@ -55,6 +57,7 @@ export function FolderNode({
   count,
   label = "",
   name = "",
+  hideBadge = false,
   enterDelay = 0,
   draggable = true,
   dragBoundFunc,
@@ -135,33 +138,37 @@ export function FolderNode({
             listening={false}
           />
         )}
-        <Rect
-          x={FOLDER_BADGE_X}
-          y={FOLDER_BADGE_Y}
-          width={FOLDER_COUNT_BADGE.size}
-          height={FOLDER_COUNT_BADGE.size}
-          fill={color}
-          stroke={FOLDER_OUTLINE}
-          strokeWidth={FOLDER_COUNT_BADGE.strokeWidth}
-          cornerRadius={FOLDER_COUNT_BADGE.radius}
-          shadowColor={FOLDER_COUNT_BADGE.shadowColor}
-          shadowBlur={FOLDER_COUNT_BADGE.shadowBlur}
-          shadowOpacity={FOLDER_COUNT_BADGE.shadowOpacity}
-          listening={false}
-        />
-        <Text
-          x={FOLDER_BADGE_X}
-          y={FOLDER_BADGE_Y}
-          width={FOLDER_COUNT_BADGE.size}
-          height={FOLDER_COUNT_BADGE.size}
-          align="center"
-          verticalAlign="middle"
-          text={String(count)}
-          fontSize={FOLDER_COUNT_BADGE.fontSize}
-          fontStyle={FOLDER_COUNT_BADGE.fontStyle}
-          fill={FOLDER_TEXT}
-          listening={false}
-        />
+        {!hideBadge && (
+          <>
+            <Rect
+              x={FOLDER_BADGE_X}
+              y={FOLDER_BADGE_Y}
+              width={FOLDER_COUNT_BADGE.size}
+              height={FOLDER_COUNT_BADGE.size}
+              fill={color}
+              stroke={FOLDER_OUTLINE}
+              strokeWidth={FOLDER_COUNT_BADGE.strokeWidth}
+              cornerRadius={FOLDER_COUNT_BADGE.radius}
+              shadowColor={FOLDER_COUNT_BADGE.shadowColor}
+              shadowBlur={FOLDER_COUNT_BADGE.shadowBlur}
+              shadowOpacity={FOLDER_COUNT_BADGE.shadowOpacity}
+              listening={false}
+            />
+            <Text
+              x={FOLDER_BADGE_X}
+              y={FOLDER_BADGE_Y}
+              width={FOLDER_COUNT_BADGE.size}
+              height={FOLDER_COUNT_BADGE.size}
+              align="center"
+              verticalAlign="middle"
+              text={String(count)}
+              fontSize={FOLDER_COUNT_BADGE.fontSize}
+              fontStyle={FOLDER_COUNT_BADGE.fontStyle}
+              fill={FOLDER_TEXT}
+              listening={false}
+            />
+          </>
+        )}
         <CanvasDeleteButton
           x={POSTIT_WIDTH - 36}
           y={POSTIT_HEIGHT - 36}

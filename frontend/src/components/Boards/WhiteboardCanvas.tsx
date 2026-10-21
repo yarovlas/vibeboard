@@ -1158,6 +1158,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     folder.members[0]?.title || folder.members[0]?.content || ""
                   }
                   name={folderNames[folder.color] ?? ""}
+                  hideBadge={renamingColor === folder.color}
                   enterDelay={Math.min(index * 0.07, 0.35)}
                   draggable={!isDrawing}
                   dragBoundFunc={(position) =>
