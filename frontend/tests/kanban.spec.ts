@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Locator, type Page, test } from "@playwright/test"
 
 import { createUser } from "./utils/privateApi"
 import { randomEmail, randomPassword } from "./utils/random"
@@ -49,6 +49,41 @@ async function openEditor(page: Page) {
   // The card sits at the top-left dock slot (40, 40) and is 220x180.
   await page.mouse.dblclick(box.x + 40 + 110, box.y + 40 + 90)
   await expect(page.getByTestId("post-it-editor")).toBeVisible()
+}
+
+/**
+ * Sleep een kaart met de muis naar het midden van een kolom. De eerste
+ * muisbeweging is groter dan de activeringsafstand (6px), zodat de sleep
+ * echt begint; daarna volgt de kaart de muis in kleine stappen.
+ */
+async function dragCardToColumn(
+  page: Page,
+  card: Locator,
+  columnTestId: string,
+) {
+  const cardBox = await card.boundingBox()
+  const columnBox = await page.getByTestId(columnTestId).boundingBox()
+  if (!cardBox || !columnBox) {
+    throw new Error("Kaart of kolom heeft geen bounding box")
+  }
+
+  const startX = cardBox.x + cardBox.width / 2
+  const startY = cardBox.y + cardBox.height / 2
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(startX + 10, startY + 10, { steps: 3 })
+  // Pas zodra de sensor actief is, verschijnt de sleepweergave.
+  await expect(page.getByTestId("kanban-drag-overlay")).toBeVisible()
+  await page.mouse.move(
+    columnBox.x + columnBox.width / 2,
+    columnBox.y + columnBox.height / 2,
+    { steps: 10 },
+  )
+  await page.mouse.up()
+  // dnd-kit blokkeert kort na een sleep nog klik-events (om een klik na het
+  // neerzetten te negeren). Wacht tot de sleepweergave weg is voordat de test
+  // weer op de pagina klikt.
+  await expect(page.getByTestId("kanban-drag-overlay")).toHaveCount(0)
 }
 
 test.describe("Kanban-weergave", () => {
@@ -207,5 +242,153 @@ test.describe("Kanban-weergave", () => {
     await expect(
       page.getByRole("list", { name: "Post-its on this whiteboard" }),
     ).toContainText("Gedeelde kaart")
+  })
+
+  test("versleept een kaart van TODO naar DONE en slaat alleen de status op", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPostIt(page, boardId, "Kaart om te verslepen")
+
+    await page.getByRole("button", { name: "Kanban view" }).click()
+    const todoColumn = page.getByTestId("kanban-column-TODO")
+    const card = todoColumn.getByTestId("kanban-card")
+    await expect(card).toBeVisible()
+
+    const patchResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+    await dragCardToColumn(page, card, "kanban-column-DONE")
+    const patchResponse = await patchResponsePromise
+    expect(patchResponse.status()).toBe(200)
+    // Alleen de status gaat mee, niet de rest van de post-it.
+    expect(patchResponse.request().postDataJSON()).toEqual({ status: "DONE" })
+
+    const doneColumn = page.getByTestId("kanban-column-DONE")
+    await expect(doneColumn.getByTestId("kanban-card")).toHaveCount(1)
+    await expect(doneColumn).toContainText("Kaart om te verslepen")
+    await expect(page.getByTestId("kanban-count-DONE")).toHaveText("1")
+    await expect(page.getByTestId("kanban-count-TODO")).toHaveText("0")
+    await expect(page.getByTestId("kanban-empty-TODO")).toBeVisible()
+    await expect(page.getByTestId("kanban-empty-DONE")).toHaveCount(0)
+  })
+
+  test("behoudt de versleepte kaart in DONE na herladen", async ({ page }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPostIt(page, boardId, "Blijft in done")
+
+    await page.getByRole("button", { name: "Kanban view" }).click()
+    const card = page
+      .getByTestId("kanban-column-TODO")
+      .getByTestId("kanban-card")
+    await expect(card).toBeVisible()
+
+    const patchResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+    await dragCardToColumn(page, card, "kanban-column-DONE")
+    expect((await patchResponsePromise).status()).toBe(200)
+    await expect(
+      page.getByTestId("kanban-column-DONE").getByTestId("kanban-card"),
+    ).toHaveCount(1)
+
+    const getResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await page.reload()
+    expect((await getResponsePromise).status()).toBe(200)
+    await expect(page.getByTestId("whiteboard-stage")).toBeVisible()
+
+    await page.getByRole("button", { name: "Kanban view" }).click()
+    const doneColumn = page.getByTestId("kanban-column-DONE")
+    await expect(doneColumn.getByTestId("kanban-card")).toHaveCount(1)
+    await expect(doneColumn).toContainText("Blijft in done")
+    await expect(page.getByTestId("kanban-count-DONE")).toHaveText("1")
+    await expect(page.getByTestId("kanban-empty-TODO")).toBeVisible()
+  })
+
+  test("deelt de nieuwe status met het whiteboard", async ({ page }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPostIt(page, boardId, "Gedeelde status")
+
+    await page.getByRole("button", { name: "Kanban view" }).click()
+    const card = page
+      .getByTestId("kanban-column-TODO")
+      .getByTestId("kanban-card")
+    await expect(card).toBeVisible()
+
+    const patchResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits/`),
+    )
+    await dragCardToColumn(page, card, "kanban-column-DONE")
+    expect((await patchResponsePromise).status()).toBe(200)
+    await expect(
+      page.getByTestId("kanban-column-DONE").getByTestId("kanban-card"),
+    ).toHaveCount(1)
+
+    await page.getByRole("button", { name: "Whiteboard view" }).click()
+    await expect(page.getByTestId("whiteboard-stage")).toBeVisible()
+    const accessibleList = page.getByRole("list", {
+      name: "Post-its on this whiteboard",
+    })
+    await expect(accessibleList).toContainText("Gedeelde status")
+    // De gedeelde query-cache is bijgewerkt: het whiteboard leest DONE.
+    await expect(accessibleList).toContainText("(status: DONE)")
+  })
+
+  test("verstuurt geen PATCH bij neerzetten in dezelfde kolom", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    await createPostIt(page, boardId, "Blijft in todo")
+
+    await page.getByRole("button", { name: "Kanban view" }).click()
+    const card = page
+      .getByTestId("kanban-column-TODO")
+      .getByTestId("kanban-card")
+    await expect(card).toBeVisible()
+
+    let patchRequests = 0
+    page.on("request", (request) => {
+      if (
+        request.method() === "PATCH" &&
+        request.url().includes(`/api/v1/boards/${boardId}/postits/`)
+      ) {
+        patchRequests += 1
+      }
+    })
+
+    const box = await card.boundingBox()
+    if (!box) throw new Error("Kaart heeft geen bounding box")
+    const startX = box.x + box.width / 2
+    const startY = box.y + box.height / 2
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    await page.mouse.move(startX + 10, startY + 10, { steps: 3 })
+    await expect(page.getByTestId("kanban-drag-overlay")).toBeVisible()
+    // Binnen dezelfde kolom laten vallen.
+    await page.mouse.move(startX + 10, startY + 70, { steps: 6 })
+    await page.mouse.up()
+    // Wacht tot de sleepweergave klaar is voordat we de afwezigheid van een
+    // PATCH controleren.
+    await expect(page.getByTestId("kanban-drag-overlay")).toHaveCount(0)
+
+    await expect(
+      page.getByTestId("kanban-column-TODO").getByTestId("kanban-card"),
+    ).toHaveCount(1)
+    await expect(page.getByTestId("kanban-count-TODO")).toHaveText("1")
+    expect(patchRequests).toBe(0)
   })
 })
