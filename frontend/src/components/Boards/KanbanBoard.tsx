@@ -24,10 +24,23 @@ import { useState } from "react"
 import { type PostItStatus, PostitsService } from "@/client"
 import { KanbanCard, KanbanCardSurface } from "@/components/Boards/KanbanCard"
 import {
+  KanbanPostItDialog,
+  type KanbanPostItDraft,
+} from "@/components/Boards/KanbanPostItDialog"
+import {
   type BoardPostIt,
   normalizePostIt,
   STATUS_LABELS,
 } from "@/components/Boards/PostItNode"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import useCustomToast from "@/hooks/useCustomToast"
 import {
   getBoardQueryOptions,
@@ -100,9 +113,10 @@ const columnCoordinateGetter: KeyboardCoordinateGetter = (event, args) => {
 interface KanbanColumnProps {
   status: PostItStatus
   cards: BoardPostIt[]
+  onEdit: (postit: BoardPostIt) => void
 }
 
-function KanbanColumn({ status, cards }: KanbanColumnProps) {
+function KanbanColumn({ status, cards, onEdit }: KanbanColumnProps) {
   const label = STATUS_LABELS[status]
   const headingId = `kanban-column-heading-${status}`
   const { setNodeRef, isOver } = useDroppable({ id: status })
@@ -131,7 +145,7 @@ function KanbanColumn({ status, cards }: KanbanColumnProps) {
       <div className="flex flex-1 flex-col gap-2 p-3">
         <ul aria-label={`${label} post-its`} className="flex flex-col gap-2">
           {cards.map((postit) => (
-            <KanbanCard key={postit.id} postit={postit} />
+            <KanbanCard key={postit.id} postit={postit} onEdit={onEdit} />
           ))}
         </ul>
         {cards.length === 0 && (
@@ -165,6 +179,10 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     id: string
     width: number
   } | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
+    null,
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -199,6 +217,77 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       })
     },
   })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, draft }: { id: string; draft: KanbanPostItDraft }) =>
+      // Only the fields edited in the dialog are sent; the position of the
+      // post-it on the whiteboard is left untouched.
+      PostitsService.updatePostit({
+        body: {
+          content: draft.content,
+          color: draft.color,
+          status: draft.status,
+          priority: draft.priority,
+          due_date: draft.due_date,
+        },
+        path: { board_id: boardId, id },
+      }),
+    onError: (error) => {
+      // Drop the optimistic edit and fall back to the server state.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.boards.postits(boardId),
+      })
+      handleError(error, showErrorToast)
+    },
+    onSuccess: (response, { id }) => {
+      const savedPostIt = normalizePostIt(response.data)
+      queryClient.setQueryData<BoardPostIt[]>(
+        queryKeys.boards.postits(boardId),
+        (current) =>
+          current?.map((postit) => (postit.id === id ? savedPostIt : postit)),
+      )
+      void queryClient.invalidateQueries({
+        queryKey: getBoardQueryOptions(boardId).queryKey,
+      })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      PostitsService.deletePostit({ path: { board_id: boardId, id } }),
+    onError: (error) => {
+      // Bring back the post-it if the server refused the delete.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.boards.postits(boardId),
+      })
+      handleError(error, showErrorToast)
+    },
+    onSuccess: (_response, id) => {
+      queryClient.setQueryData<BoardPostIt[]>(
+        queryKeys.boards.postits(boardId),
+        (current) => current?.filter((postit) => postit.id !== id),
+      )
+      setDeleteCandidate(null)
+      setEditingId((current) => (current === id ? null : current))
+      void queryClient.invalidateQueries({
+        queryKey: getBoardQueryOptions(boardId).queryKey,
+      })
+    },
+  })
+
+  const savePostIt = (id: string, draft: KanbanPostItDraft) => {
+    // Apply the edit straight away so the card shows the new text and a
+    // status change moves it to the right column without a round-trip.
+    queryClient.setQueryData<BoardPostIt[]>(
+      queryKeys.boards.postits(boardId),
+      (current) =>
+        current?.map((postit) =>
+          postit.id === id ? { ...postit, ...draft } : postit,
+        ),
+    )
+    setEditingId(null)
+    updateMutation.mutate({ id, draft })
+  }
 
   const movePostIt = (id: string, status: PostItStatus) => {
     // A draft still being created has no server id, so it can never be
@@ -236,6 +325,10 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
 
   const activePostit = activeDrag
     ? postits.find((postit) => postit.id === activeDrag.id)
+    : undefined
+
+  const editingPostit = editingId
+    ? postits.find((postit) => postit.id === editingId)
     : undefined
 
   const describe = (id: unknown) => {
@@ -300,6 +393,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
               key={status}
               status={status}
               cards={cardsByStatus.get(status) ?? []}
+              onEdit={(postit) => setEditingId(postit.id)}
             />
           ))}
         </div>
@@ -319,6 +413,60 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {editingPostit && (
+        // Keyed by id: opening another card starts from that card's values.
+        <KanbanPostItDialog
+          key={editingPostit.id}
+          postit={editingPostit}
+          onClose={() => setEditingId(null)}
+          onSave={(draft) => savePostIt(editingPostit.id, draft)}
+          onRequestDelete={() => {
+            // Close the edit dialog first: the confirmation is its own
+            // dialog instead of a nested one.
+            setEditingId(null)
+            setDeleteCandidate(editingPostit)
+          }}
+        />
+      )}
+
+      <Dialog
+        open={deleteCandidate !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteCandidate(null)
+        }}
+      >
+        <DialogContent data-testid="kanban-delete-dialog">
+          <DialogHeader>
+            <DialogTitle>Delete post-it</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this post-it? This action cannot
+              be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteCandidate(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              data-testid="kanban-delete-confirm"
+              onClick={() => {
+                if (!deleteCandidate) return
+                deleteMutation.mutate(deleteCandidate.id)
+                setDeleteCandidate(null)
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }
