@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/dialog"
 import useCustomToast from "@/hooks/useCustomToast"
 import {
-  clampPosition,
   createTemporaryId,
   dockPerRow,
   dockSlotAt,
@@ -51,7 +50,6 @@ import {
 } from "@/lib/board-queries"
 import {
   type BoardViewport,
-  clampDragPosition,
   DEFAULT_VIEWPORT,
   type Point,
   scaledOverlayStyle,
@@ -61,6 +59,7 @@ import {
 } from "@/lib/board-viewport"
 import { handleError } from "@/lib/errors"
 import { queryKeys } from "@/lib/query-keys"
+import { cn } from "@/lib/utils"
 
 interface WhiteboardCanvasProps {
   boardId: string
@@ -78,7 +77,12 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   // Zoom and pan of the whiteboard camera. The board itself always stores
   // unscaled coordinates; only the stage transform uses the viewport.
   const [viewport, setViewport] = useState<BoardViewport>(DEFAULT_VIEWPORT)
-  const panState = useRef<{ pointer: Point; origin: Point } | null>(null)
+  const [isPanning, setIsPanning] = useState(false)
+  const panState = useRef<{
+    pointer: Point
+    origin: Point
+    moved: boolean
+  } | null>(null)
   const spaceHeld = useRef(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -911,9 +915,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (postit.id.startsWith("temporary-")) return
     if (postit.id === editingId) return
     clearAutoCollapse(postit.color)
-    const clamped = clampPosition(position, canvasSize)
-    if (clamped.x === postit.x && clamped.y === postit.y) return
-    const moved: BoardPostIt = { ...postit, x: clamped.x, y: clamped.y }
+    // The board is unbounded: post-its keep the exact position they were
+    // dropped at, including negative coordinates.
+    if (position.x === postit.x && position.y === postit.y) return
+    const moved: BoardPostIt = { ...postit, x: position.x, y: position.y }
     queryClient.setQueryData<BoardPostIt[]>(
       queryKeys.boards.postits(boardId),
       (current) =>
@@ -923,10 +928,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }
 
   const moveFolder = (color: string, position: { x: number; y: number }) => {
-    const clamped = clampPosition(position, canvasSize)
     const previous = folderPositions[color]
-    if (previous?.x === clamped.x && previous?.y === clamped.y) return
-    writeFolderPositions({ ...folderPositions, [color]: clamped })
+    if (previous?.x === position.x && previous?.y === position.y) return
+    writeFolderPositions({ ...folderPositions, [color]: position })
   }
 
   const editPostIt = (postit: BoardPostIt) => {
@@ -968,8 +972,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       board_id: boardId,
       title: "",
       content: "",
-      x: clampPosition(position, canvasSize).x,
-      y: clampPosition(position, canvasSize).y,
+      x: position.x,
+      y: position.y,
       color: POSTIT_DEFAULT_COLOR,
       status: "TODO",
       priority: null,
@@ -1066,9 +1070,14 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
   const handleStageMouseDown = (event: KonvaEventObject<MouseEvent>) => {
     const native = event.evt
-    // Middle mouse button or space + left button pans the canvas.
+    const onEmptyCanvas = event.target === event.target.getStage()
+    // Middle mouse button always pans; space + left button pans anywhere;
+    // a plain left drag on the empty canvas pans too, so the board can be
+    // moved without a keyboard or extra mouse button.
     const wantsPan =
-      native.button === 1 || (native.button === 0 && spaceHeld.current)
+      native.button === 1 ||
+      (native.button === 0 &&
+        (spaceHeld.current || (!isDrawing && onEmptyCanvas)))
     if (wantsPan) {
       const pointer = getContainerPointer(event)
       if (pointer) {
@@ -1076,6 +1085,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         panState.current = {
           pointer,
           origin: { x: viewport.x, y: viewport.y },
+          moved: false,
         }
         return
       }
@@ -1088,10 +1098,18 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (pan) {
       const pointer = getContainerPointer(event)
       if (!pointer) return
+      const dx = pointer.x - pan.pointer.x
+      const dy = pointer.y - pan.pointer.y
+      // A few pixels of tolerance keep click and double-click intact.
+      if (!pan.moved && Math.hypot(dx, dy) < 3) return
+      if (!pan.moved) {
+        pan.moved = true
+        setIsPanning(true)
+      }
       setViewport((current) => ({
         ...current,
-        x: pan.origin.x + (pointer.x - pan.pointer.x),
-        y: pan.origin.y + (pointer.y - pan.pointer.y),
+        x: pan.origin.x + dx,
+        y: pan.origin.y + dy,
       }))
       return
     }
@@ -1101,6 +1119,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const handleStageMouseUp = () => {
     if (panState.current) {
       panState.current = null
+      setIsPanning(false)
       return
     }
     finishStroke()
@@ -1110,6 +1129,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     // A pointer released outside the stage must not leave a pan or stroke
     // hanging.
     panState.current = null
+    setIsPanning(false)
     finishStroke()
   }
 
@@ -1253,7 +1273,10 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
 
       <section
         ref={canvasRef}
-        className="relative min-h-[420px] flex-1 overflow-hidden rounded-xl border bg-background"
+        className={cn(
+          "relative min-h-[420px] flex-1 overflow-hidden rounded-xl border bg-background",
+          isPanning && "cursor-grabbing",
+        )}
         data-testid="whiteboard-stage"
         data-zoom={viewport.scale}
         data-pan-x={viewport.x}
@@ -1298,9 +1321,6 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                   hideBadge={renamingColor === folder.color}
                   enterDelay={Math.min(index * 0.07, 0.35)}
                   draggable={!isDrawing}
-                  dragBoundFunc={(position) =>
-                    clampDragPosition(position, canvasSize, viewport)
-                  }
                   onExpand={() => expandFolder(folder.color)}
                   onDelete={() =>
                     setFolderDeleteCandidate({
@@ -1338,9 +1358,6 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                       setHoveredId(hovered ? p.id : null)
                     }}
                     onDragEnd={(p, position) => movePostIt(p, position)}
-                    dragBoundFunc={(position) =>
-                      clampDragPosition(position, canvasSize, viewport)
-                    }
                   />
                 ),
               )}
