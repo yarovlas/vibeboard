@@ -334,7 +334,7 @@ test.describe("Post-it verslepen", () => {
     await expect(postitList).toContainText("Versleepbare notitie")
   })
 
-  test("kan een post-it niet buiten het canvas slepen", async ({ page }) => {
+  test("kan een post-it voorbij de canvasrand slepen", async ({ page }) => {
     await createLoggedInBoard(page)
     const boardId = getBoardId(page)
 
@@ -377,14 +377,12 @@ test.describe("Post-it verslepen", () => {
     const patchResponse = await patchResponsePromise
     expect(patchResponse.status()).toBe(200)
     const savedBody = patchResponse.request().postDataJSON()
-    // POSTIT_WIDTH=220, POSTIT_HEIGHT=180: note must stay fully inside
-    // (2px tolerance for container borders)
-    expect(savedBody.x).toBeGreaterThanOrEqual(0)
-    expect(savedBody.y).toBeGreaterThanOrEqual(0)
-    expect(savedBody.x).toBeLessThanOrEqual(box.width - 220 + 2)
-    expect(savedBody.y).toBeLessThanOrEqual(box.height - 180 + 2)
+    // The board is unbounded now: the card keeps the position it was dropped
+    // at, far beyond the old hardcoded canvas edge.
+    expect(savedBody.x).toBeGreaterThan(box.width + 300)
+    expect(savedBody.y).toBeGreaterThan(box.height + 300)
 
-    // Reload: clamped position must persist, content untouched
+    // Reload: the unclamped position must persist, content untouched
     const getResponsePromise = page.waitForResponse(
       (response) =>
         response.request().method() === "GET" &&

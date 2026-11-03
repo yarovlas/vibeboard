@@ -12,22 +12,6 @@ export function createTemporaryId(): string {
   return `temporary-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-export function clampPosition(
-  position: { x: number; y: number },
-  canvasSize: { width: number; height: number },
-): { x: number; y: number } {
-  return {
-    x: Math.min(
-      Math.max(0, position.x),
-      Math.max(0, canvasSize.width - POSTIT_WIDTH),
-    ),
-    y: Math.min(
-      Math.max(0, position.y),
-      Math.max(0, canvasSize.height - POSTIT_HEIGHT),
-    ),
-  }
-}
-
 export function dockPerRow(canvasWidth: number): number {
   return Math.max(
     1,
