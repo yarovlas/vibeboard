@@ -165,4 +165,68 @@ test.describe("Whiteboard onbegrensd canvas", () => {
     expectClose(body.x, 40 + delta.x)
     expectClose(body.y, 40 + delta.y)
   })
+
+  test("klikken naast de editor slaat de post-it op", async ({ page }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    const stage = page.getByTestId("whiteboard-stage")
+    const box = await stage.boundingBox()
+    if (!box) throw new Error("Whiteboard stage has no bounding box")
+
+    await page.mouse.dblclick(box.x + 400, box.y + 200)
+    const editor = page.getByTestId("post-it-editor")
+    await expect(editor).toBeVisible()
+    await editor.fill("Klaar met klikken")
+
+    const postPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    // A click (no drag) outside the editor must blur and commit the draft.
+    await page.mouse.click(box.x + 650, box.y + 320)
+    const response = await postPromise
+    expect(response.status()).toBe(200)
+
+    await expect(editor).toHaveCount(0)
+    await expect(
+      page.getByRole("list", { name: "Post-its on this whiteboard" }),
+    ).toContainText("Klaar met klikken")
+    // Clicking outside must not have panned the board.
+    const viewport = await readViewport(page)
+    expect(viewport).toEqual({ zoom: 1, x: 0, y: 0 })
+  })
+
+  test("Enter slaat de post-it op en Shift+Enter voegt een regel toe", async ({
+    page,
+  }) => {
+    await createLoggedInBoard(page)
+    const boardId = getBoardId(page)
+    const stage = page.getByTestId("whiteboard-stage")
+    const box = await stage.boundingBox()
+    if (!box) throw new Error("Whiteboard stage has no bounding box")
+
+    await page.mouse.dblclick(box.x + 400, box.y + 200)
+    const editor = page.getByTestId("post-it-editor")
+    await expect(editor).toBeVisible()
+
+    await editor.fill("Eerste regel")
+    await editor.press("Shift+Enter")
+    // Shift+Enter adds a newline and must not commit.
+    await expect(editor).toHaveValue("Eerste regel\n")
+    await expect(editor).toBeVisible()
+
+    const postPromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/boards/${boardId}/postits`),
+    )
+    await editor.press("Enter")
+    const response = await postPromise
+    expect(response.status()).toBe(200)
+
+    const body = response.request().postDataJSON() as { content: string }
+    expect(body.content).toBe("Eerste regel\n")
+    await expect(editor).toHaveCount(0)
+  })
 })
