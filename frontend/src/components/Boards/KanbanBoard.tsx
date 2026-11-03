@@ -27,6 +27,7 @@ import {
   KanbanPostItDialog,
   type KanbanPostItDraft,
 } from "@/components/Boards/KanbanPostItDialog"
+import { KanbanToolbar } from "@/components/Boards/KanbanToolbar"
 import {
   type BoardPostIt,
   normalizePostIt,
@@ -47,6 +48,11 @@ import {
   getPostitsQueryOptions,
 } from "@/lib/board-queries"
 import { handleError } from "@/lib/errors"
+import {
+  type KanbanSortKey,
+  type KanbanSortOrder,
+  sortPostIts,
+} from "@/lib/kanban-controls"
 import { queryKeys } from "@/lib/query-keys"
 import { cn } from "@/lib/utils"
 
@@ -183,6 +189,9 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
     null,
   )
+  // Sorting is a view-only preference: it is deliberately not persisted.
+  const [sortKey, setSortKey] = useState<KanbanSortKey>("manual")
+  const [sortOrder, setSortOrder] = useState<KanbanSortOrder>("asc")
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -358,6 +367,12 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     if (postit.id.startsWith("temporary-")) continue
     cardsByStatus.get(postit.status)?.push(postit)
   }
+  for (const status of COLUMN_ORDER) {
+    cardsByStatus.set(
+      status,
+      sortPostIts(cardsByStatus.get(status) ?? [], sortKey, sortOrder),
+    )
+  }
 
   return (
     <section
@@ -370,6 +385,12 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
         press space to pick it up, use the left and right arrow keys to choose a
         column, then press space to drop it or escape to cancel.
       </p>
+      <KanbanToolbar
+        sortKey={sortKey}
+        sortOrder={sortOrder}
+        onSortKeyChange={setSortKey}
+        onSortOrderChange={setSortOrder}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
