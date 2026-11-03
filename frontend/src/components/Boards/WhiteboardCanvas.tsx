@@ -49,6 +49,16 @@ import {
   getPostitsQueryOptions,
   getStrokesQueryOptions,
 } from "@/lib/board-queries"
+import {
+  type BoardViewport,
+  clampDragPosition,
+  DEFAULT_VIEWPORT,
+  type Point,
+  scaledOverlayStyle,
+  ZOOM_BUTTON_STEP,
+  ZOOM_WHEEL_STEP,
+  zoomAtPoint,
+} from "@/lib/board-viewport"
 import { handleError } from "@/lib/errors"
 import { queryKeys } from "@/lib/query-keys"
 
@@ -65,6 +75,11 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const { data: postits } = useSuspenseQuery(getPostitsQueryOptions(boardId))
   const { data: board } = useSuspenseQuery(getBoardQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
+  // Zoom and pan of the whiteboard camera. The board itself always stores
+  // unscaled coordinates; only the stage transform uses the viewport.
+  const [viewport, setViewport] = useState<BoardViewport>(DEFAULT_VIEWPORT)
+  const panState = useRef<{ pointer: Point; origin: Point } | null>(null)
+  const spaceHeld = useRef(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -1024,6 +1039,80 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     setCurrentPoints((current) => [...(current ?? []), pointer.x, pointer.y])
   }
 
+  /** Pointer in screen (container) pixels, used for panning and zoom anchors. */
+  const getContainerPointer = (
+    event: KonvaEventObject<MouseEvent> | KonvaEventObject<WheelEvent>,
+  ) => event.target.getStage()?.getPointerPosition() ?? null
+
+  const handleWheel = (event: KonvaEventObject<WheelEvent>) => {
+    // The wheel zooms instead of scrolling the page.
+    event.evt.preventDefault()
+    const anchor = getContainerPointer(event)
+    if (!anchor) return
+    const factor = event.evt.deltaY > 0 ? 1 / ZOOM_WHEEL_STEP : ZOOM_WHEEL_STEP
+    setViewport((current) =>
+      zoomAtPoint(current, current.scale * factor, anchor),
+    )
+  }
+
+  const zoomBy = (factor: number) => {
+    const anchor = { x: canvasSize.width / 2, y: canvasSize.height / 2 }
+    setViewport((current) =>
+      zoomAtPoint(current, current.scale * factor, anchor),
+    )
+  }
+
+  const resetViewport = () => setViewport(DEFAULT_VIEWPORT)
+
+  const handleStageMouseDown = (event: KonvaEventObject<MouseEvent>) => {
+    const native = event.evt
+    // Middle mouse button or space + left button pans the canvas.
+    const wantsPan =
+      native.button === 1 || (native.button === 0 && spaceHeld.current)
+    if (wantsPan) {
+      const pointer = getContainerPointer(event)
+      if (pointer) {
+        native.preventDefault()
+        panState.current = {
+          pointer,
+          origin: { x: viewport.x, y: viewport.y },
+        }
+        return
+      }
+    }
+    handlePointerDown(event)
+  }
+
+  const handleStageMouseMove = (event: KonvaEventObject<MouseEvent>) => {
+    const pan = panState.current
+    if (pan) {
+      const pointer = getContainerPointer(event)
+      if (!pointer) return
+      setViewport((current) => ({
+        ...current,
+        x: pan.origin.x + (pointer.x - pan.pointer.x),
+        y: pan.origin.y + (pointer.y - pan.pointer.y),
+      }))
+      return
+    }
+    handlePointerMove(event)
+  }
+
+  const handleStageMouseUp = () => {
+    if (panState.current) {
+      panState.current = null
+      return
+    }
+    finishStroke()
+  }
+
+  const handleStageMouseLeave = () => {
+    // A pointer released outside the stage must not leave a pan or stroke
+    // hanging.
+    panState.current = null
+    finishStroke()
+  }
+
   const finishStroke = () => {
     if (!isDrawing || !isPointerDown.current) return
     isPointerDown.current = false
@@ -1101,6 +1190,41 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     return () => window.removeEventListener("keydown", handleKeyDown)
   })
 
+  // Space arms pan mode: hold it and drag with the left mouse button. Form
+  // controls, buttons and links keep their normal space behaviour.
+  useEffect(() => {
+    const keepsItsOwnSpace = (target: EventTarget | null) =>
+      target instanceof HTMLElement &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "BUTTON" ||
+        target.tagName === "A" ||
+        target.isContentEditable)
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" || keepsItsOwnSpace(event.target)) return
+      spaceHeld.current = true
+      // Do not scroll the page while the user prepares a pan.
+      event.preventDefault()
+    }
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === "Space") spaceHeld.current = false
+    }
+    const clearSpace = () => {
+      spaceHeld.current = false
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("keyup", handleKeyUp)
+    window.addEventListener("blur", clearSpace)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("keyup", handleKeyUp)
+      window.removeEventListener("blur", clearSpace)
+    }
+  }, [])
+
   return (
     <div className="flex min-h-[60vh] flex-1 flex-col gap-3">
       <BoardToolbar
@@ -1121,22 +1245,35 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         onRedo={redoStroke}
         onRecolor={recolorSelected}
         onAddPostIt={() => addDraft({ x: 40, y: 40 })}
+        zoom={viewport.scale}
+        onZoomIn={() => zoomBy(ZOOM_BUTTON_STEP)}
+        onZoomOut={() => zoomBy(1 / ZOOM_BUTTON_STEP)}
+        onZoomReset={resetViewport}
       />
 
       <section
         ref={canvasRef}
         className="relative min-h-[420px] flex-1 overflow-hidden rounded-xl border bg-background"
         data-testid="whiteboard-stage"
+        data-zoom={viewport.scale}
+        data-pan-x={viewport.x}
+        data-pan-y={viewport.y}
         aria-label="Whiteboard canvas"
       >
         {canvasSize.width > 0 && canvasSize.height > 0 && (
           <Stage
             width={canvasSize.width}
             height={canvasSize.height}
+            x={viewport.x}
+            y={viewport.y}
+            scaleX={viewport.scale}
+            scaleY={viewport.scale}
+            onWheel={handleWheel}
             onDblClick={handleStageDoubleClick}
-            onMouseDown={handlePointerDown}
-            onMouseMove={handlePointerMove}
-            onMouseUp={finishStroke}
+            onMouseDown={handleStageMouseDown}
+            onMouseMove={handleStageMouseMove}
+            onMouseUp={handleStageMouseUp}
+            onMouseLeave={handleStageMouseLeave}
             onTouchStart={handlePointerDown}
             onTouchMove={handlePointerMove}
             onTouchEnd={finishStroke}
@@ -1162,7 +1299,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                   enterDelay={Math.min(index * 0.07, 0.35)}
                   draggable={!isDrawing}
                   dragBoundFunc={(position) =>
-                    clampPosition(position, canvasSize)
+                    clampDragPosition(position, canvasSize, viewport)
                   }
                   onExpand={() => expandFolder(folder.color)}
                   onDelete={() =>
@@ -1202,7 +1339,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     }}
                     onDragEnd={(p, position) => movePostIt(p, position)}
                     dragBoundFunc={(position) =>
-                      clampPosition(position, canvasSize)
+                      clampDragPosition(position, canvasSize, viewport)
                     }
                   />
                 ),
@@ -1229,7 +1366,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         )}
 
         {hoveredPostIt && !editingPostIt && !isDrawing && (
-          <PostItTooltip postit={hoveredPostIt} open />
+          <PostItTooltip postit={hoveredPostIt} open viewport={viewport} />
         )}
 
         {postits.length === 0 && !editingPostIt && (
@@ -1253,8 +1390,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             placeholder="Write a thought..."
             spellCheck
             style={{
-              left: editingPostIt.x,
-              top: editingPostIt.y,
+              ...scaledOverlayStyle(viewport, editingPostIt.x, editingPostIt.y),
               width: POSTIT_WIDTH - 16,
               height: POSTIT_HEIGHT - 16,
               backgroundColor: editingPostIt.color || POSTIT_DEFAULT_COLOR,
@@ -1295,6 +1431,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             dueDate={editingPostIt.due_date}
             x={editingPostIt.x}
             y={editingPostIt.y}
+            viewport={viewport}
             onStatusChange={(status) => changeMeta(editingPostIt, { status })}
             onPriorityChange={(priority) =>
               changeMeta(editingPostIt, { priority })
@@ -1334,6 +1471,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
             initialName={folderNames[renamingFolder.color] ?? ""}
             x={renamingFolder.x}
             y={renamingFolder.y}
+            viewport={viewport}
             color={renamingFolder.color}
             onCommit={(name) => commitFolderRename(renamingFolder.color, name)}
             onCancel={cancelFolderRename}

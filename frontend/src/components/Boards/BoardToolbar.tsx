@@ -1,4 +1,14 @@
-import { Group, Pencil, Plus, Redo2, Undo2, Ungroup } from "lucide-react"
+import {
+  Group,
+  Pencil,
+  Plus,
+  Redo2,
+  RotateCcw,
+  Undo2,
+  Ungroup,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react"
 
 import { POSTIT_COLORS } from "@/components/Boards/PostItNode"
 import { Button } from "@/components/ui/button"
@@ -12,6 +22,7 @@ interface BoardToolbarProps {
   canUndo: boolean
   canRedo: boolean
   canRecolor: boolean
+  zoom: number
   onToggleDrawing: () => void
   onPenColorChange: (color: string) => void
   onPenWidthChange: (width: number) => void
@@ -21,6 +32,9 @@ interface BoardToolbarProps {
   onRedo: () => void
   onRecolor: (color: string) => void
   onAddPostIt: () => void
+  onZoomIn: () => void
+  onZoomOut: () => void
+  onZoomReset: () => void
 }
 
 export function BoardToolbar({
@@ -32,6 +46,7 @@ export function BoardToolbar({
   canUndo,
   canRedo,
   canRecolor,
+  zoom,
   onToggleDrawing,
   onPenColorChange,
   onPenWidthChange,
@@ -41,6 +56,9 @@ export function BoardToolbar({
   onRedo,
   onRecolor,
   onAddPostIt,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
 }: BoardToolbarProps) {
   return (
     <div
@@ -54,6 +72,48 @@ export function BoardToolbar({
           : "Double-click the canvas to add a post-it. Click a post-it to select it. Group bundles colors into folders. Rename a folder with its ✎ button."}
       </p>
       <div className="flex items-center gap-2">
+        <fieldset className="flex items-center gap-1" aria-label="Zoom">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onZoomOut}
+            aria-label="Zoom out"
+            title="Zoom out"
+            data-testid="zoom-out"
+          >
+            <ZoomOut />
+          </Button>
+          <span
+            data-testid="zoom-level"
+            aria-live="polite"
+            className="w-12 text-center text-sm text-muted-foreground tabular-nums"
+          >
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onZoomIn}
+            aria-label="Zoom in"
+            title="Zoom in"
+            data-testid="zoom-in"
+          >
+            <ZoomIn />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onZoomReset}
+            aria-label="Reset zoom"
+            title="Reset zoom"
+            data-testid="zoom-reset"
+          >
+            <RotateCcw />
+          </Button>
+        </fieldset>
         <fieldset
           className="flex items-center gap-1"
           aria-label="Post-it color"
