@@ -7,9 +7,11 @@ import { WhiteboardCanvas } from "@/components/Boards/WhiteboardCanvas"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useBoardView } from "@/hooks/board-view"
 import { getBoardQueryOptions } from "@/lib/board-queries"
+import { parseKanbanSearch } from "@/lib/kanban-controls"
 
 export const Route = createFileRoute("/_layout/boards/$boardId")({
   component: BoardPage,
+  validateSearch: parseKanbanSearch,
   head: () => ({
     meta: [
       {

@@ -20,6 +20,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useState } from "react"
 import { type PostItStatus, PostitsService } from "@/client"
 import { KanbanCard, KanbanCardSurface } from "@/components/Boards/KanbanCard"
@@ -27,6 +28,7 @@ import {
   KanbanPostItDialog,
   type KanbanPostItDraft,
 } from "@/components/Boards/KanbanPostItDialog"
+import { KanbanToolbar } from "@/components/Boards/KanbanToolbar"
 import {
   type BoardPostIt,
   normalizePostIt,
@@ -47,13 +49,26 @@ import {
   getPostitsQueryOptions,
 } from "@/lib/board-queries"
 import { handleError } from "@/lib/errors"
+import {
+  KANBAN_STATUSES,
+  type KanbanFilters,
+  type KanbanSortKey,
+  type KanbanSortOrder,
+  matchesKanbanFilters,
+  normalizeKanbanFilters,
+  PRIORITY_FILTER_OPTIONS,
+  type PriorityFilter,
+  sortPostIts,
+  toggleFilterValue,
+  toKanbanSearchState,
+} from "@/lib/kanban-controls"
 import { queryKeys } from "@/lib/query-keys"
 import { cn } from "@/lib/utils"
 
-const COLUMN_ORDER: PostItStatus[] = ["TODO", "IN_PROGRESS", "DONE"]
-
 function isColumnStatus(id: unknown): id is PostItStatus {
-  return typeof id === "string" && COLUMN_ORDER.some((status) => status === id)
+  return (
+    typeof id === "string" && KANBAN_STATUSES.some((status) => status === id)
+  )
 }
 
 /**
@@ -80,7 +95,7 @@ const columnCoordinateGetter: KeyboardCoordinateGetter = (event, args) => {
   const { collisionRect, droppableRects, droppableContainers } = args.context
   if (!collisionRect) return undefined
 
-  const columns = COLUMN_ORDER.flatMap((status) => {
+  const columns = KANBAN_STATUSES.flatMap((status) => {
     // Right after the drag starts, the measurements may not be available yet;
     // fall back to the live DOM rect of the column.
     const rect =
@@ -183,6 +198,40 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   const [deleteCandidate, setDeleteCandidate] = useState<BoardPostIt | null>(
     null,
   )
+  // Sorting is a view-only preference: it is deliberately not persisted.
+  const [sortKey, setSortKey] = useState<KanbanSortKey>("manual")
+  const [sortOrder, setSortOrder] = useState<KanbanSortOrder>("asc")
+  // Filters live in the URL so the view can be shared and survives a reload.
+  const searchState = useSearch({ from: "/_layout/boards/$boardId" })
+  const navigate = useNavigate()
+  const filters = normalizeKanbanFilters(searchState)
+
+  const updateFilters = (next: KanbanFilters) => {
+    void navigate({
+      to: "/boards/$boardId",
+      params: { boardId },
+      search: toKanbanSearchState(next),
+      replace: true,
+    })
+  }
+
+  const toggleStatus = (status: PostItStatus) =>
+    updateFilters({
+      ...filters,
+      statuses: toggleFilterValue(filters.statuses, status, KANBAN_STATUSES),
+    })
+
+  const togglePriority = (priority: PriorityFilter) =>
+    updateFilters({
+      ...filters,
+      priorities: toggleFilterValue(
+        filters.priorities,
+        priority,
+        PRIORITY_FILTER_OPTIONS,
+      ),
+    })
+
+  const updateQuery = (query: string) => updateFilters({ ...filters, query })
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -351,12 +400,19 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   }
 
   const cardsByStatus = new Map<PostItStatus, BoardPostIt[]>()
-  for (const status of COLUMN_ORDER) cardsByStatus.set(status, [])
+  for (const status of KANBAN_STATUSES) cardsByStatus.set(status, [])
   for (const postit of postits) {
     // A draft that is still being created only lives in the query cache;
     // it has no saved status yet and must not appear on the board.
     if (postit.id.startsWith("temporary-")) continue
+    if (!matchesKanbanFilters(postit, filters)) continue
     cardsByStatus.get(postit.status)?.push(postit)
+  }
+  for (const status of KANBAN_STATUSES) {
+    cardsByStatus.set(
+      status,
+      sortPostIts(cardsByStatus.get(status) ?? [], sortKey, sortOrder),
+    )
   }
 
   return (
@@ -370,6 +426,18 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
         press space to pick it up, use the left and right arrow keys to choose a
         column, then press space to drop it or escape to cancel.
       </p>
+      <KanbanToolbar
+        sortKey={sortKey}
+        sortOrder={sortOrder}
+        onSortKeyChange={setSortKey}
+        onSortOrderChange={setSortOrder}
+        statuses={filters.statuses}
+        priorities={filters.priorities}
+        onToggleStatus={toggleStatus}
+        onTogglePriority={togglePriority}
+        query={filters.query}
+        onQueryChange={updateQuery}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={collisionDetection}
@@ -388,7 +456,9 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
           data-testid="kanban-columns"
           className="flex min-h-[24rem] flex-1 items-stretch gap-4 overflow-x-auto pb-2"
         >
-          {COLUMN_ORDER.map((status) => (
+          {KANBAN_STATUSES.filter((status) =>
+            filters.statuses.includes(status),
+          ).map((status) => (
             <KanbanColumn
               key={status}
               status={status}
@@ -396,6 +466,14 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
               onEdit={(postit) => setEditingId(postit.id)}
             />
           ))}
+          {filters.statuses.length === 0 && (
+            <p
+              data-testid="kanban-no-columns"
+              className="flex flex-1 items-center justify-center rounded-xl border-2 border-dashed px-4 py-10 text-center text-sm text-muted-foreground"
+            >
+              No columns selected. Enable a status filter to show its column.
+            </p>
+          )}
         </div>
         <DragOverlay>
           {activePostit ? (
