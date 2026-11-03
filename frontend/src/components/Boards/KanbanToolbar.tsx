@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp } from "lucide-react"
+import { ArrowDown, ArrowUp, Search } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import type { PostItStatus } from "@/client"
 import { STATUS_LABELS } from "@/components/Boards/PostItNode"
@@ -51,11 +52,14 @@ interface KanbanToolbarProps {
   priorities: PriorityFilter[]
   onToggleStatus: (status: PostItStatus) => void
   onTogglePriority: (priority: PriorityFilter) => void
+  query: string
+  onQueryChange: (query: string) => void
 }
 
 /**
- * Controls above the kanban columns. Every control only rearranges or hides
- * the already fetched cards client-side; the shared query stays untouched.
+ * Controls above the kanban columns. Every control only rearranges, hides or
+ * searches the already fetched cards client-side; the shared query stays
+ * untouched.
  */
 export function KanbanToolbar({
   sortKey,
@@ -66,8 +70,25 @@ export function KanbanToolbar({
   priorities,
   onToggleStatus,
   onTogglePriority,
+  query,
+  onQueryChange,
 }: KanbanToolbarProps) {
   const canSort = sortKey !== "manual"
+  const [searchInput, setSearchInput] = useState(query)
+
+  // Keep the field in sync when the query changes outside the input, for
+  // example after a reload or with the browser history buttons.
+  useEffect(() => {
+    setSearchInput(query)
+  }, [query])
+
+  // Only write to the URL once the user pauses, so typing does not trigger a
+  // navigation per keystroke.
+  useEffect(() => {
+    if (searchInput === query) return
+    const timeout = setTimeout(() => onQueryChange(searchInput), 200)
+    return () => clearTimeout(timeout)
+  }, [searchInput, query, onQueryChange])
 
   return (
     <div
@@ -76,6 +97,22 @@ export function KanbanToolbar({
       data-testid="kanban-toolbar"
       className="mb-3 flex flex-wrap items-center gap-3"
     >
+      <label className="relative flex items-center">
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute left-2 size-4 text-muted-foreground"
+        />
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Search post-its"
+          aria-label="Search post-its"
+          data-testid="kanban-search"
+          className="h-8 w-56 rounded-md border border-input bg-transparent pr-3 pl-8 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      </label>
+
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">Sort</span>
         <Select

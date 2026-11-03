@@ -231,6 +231,8 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       ),
     })
 
+  const updateQuery = (query: string) => updateFilters({ ...filters, query })
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: columnCoordinateGetter }),
@@ -433,6 +435,8 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
         priorities={filters.priorities}
         onToggleStatus={toggleStatus}
         onTogglePriority={togglePriority}
+        query={filters.query}
+        onQueryChange={updateQuery}
       />
       <DndContext
         sensors={sensors}

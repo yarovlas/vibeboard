@@ -102,6 +102,7 @@ function parseEnumList<T extends string>(
  * option is visible; an explicit empty list means the user hid them all.
  */
 export interface KanbanSearchState {
+  q?: string
   status?: PostItStatus[]
   priority?: PriorityFilter[]
 }
@@ -110,25 +111,44 @@ export interface KanbanSearchState {
 export function parseKanbanSearch(
   raw: Record<string, unknown>,
 ): KanbanSearchState {
+  const query = typeof raw.q === "string" ? raw.q : undefined
   return {
+    q: query?.trim() ? query : undefined,
     status: parseEnumList(raw.status, isPostItStatus),
     priority: parseEnumList(raw.priority, isPriorityFilter),
   }
 }
 
 export interface KanbanFilters {
+  query: string
   statuses: PostItStatus[]
   priorities: PriorityFilter[]
 }
 
-/** Fill in the defaults: no parameters means every status and priority. */
+/** Fill in the defaults: no parameters means everything is visible. */
 export function normalizeKanbanFilters(
   state: KanbanSearchState,
 ): KanbanFilters {
   return {
+    query: state.q ?? "",
     statuses: state.status ?? [...KANBAN_STATUSES],
     priorities: state.priority ?? [...PRIORITY_FILTER_OPTIONS],
   }
+}
+
+/**
+ * Case-insensitive match on the combined title and content. Tags are not
+ * part of the post-it model yet (PBI-13), so they cannot be searched.
+ */
+export function matchesKanbanSearch(
+  postit: BoardPostIt,
+  query: string,
+): boolean {
+  const needle = query.trim().toLocaleLowerCase()
+  if (!needle) return true
+  return `${postit.title}\n${postit.content}`
+    .toLocaleLowerCase()
+    .includes(needle)
 }
 
 export function matchesKanbanFilters(
@@ -137,7 +157,8 @@ export function matchesKanbanFilters(
 ): boolean {
   return (
     filters.statuses.includes(postit.status) &&
-    filters.priorities.includes(postit.priority ?? "NONE")
+    filters.priorities.includes(postit.priority ?? "NONE") &&
+    matchesKanbanSearch(postit, filters.query)
   )
 }
 
@@ -159,6 +180,7 @@ export function toggleFilterValue<T extends string>(
  */
 export function toKanbanSearchState(filters: KanbanFilters): KanbanSearchState {
   return {
+    q: filters.query.trim() ? filters.query : undefined,
     status:
       filters.statuses.length === KANBAN_STATUSES.length
         ? undefined
