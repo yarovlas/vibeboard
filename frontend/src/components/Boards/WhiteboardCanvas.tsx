@@ -1081,7 +1081,11 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     if (wantsPan) {
       const pointer = getContainerPointer(event)
       if (pointer) {
-        native.preventDefault()
+        // Only the middle button needs its default suppressed (autoscroll).
+        // A left-button pan must keep the default mousedown behaviour, so
+        // clicking outside the open post-it editor still blurs it and
+        // commits the draft.
+        if (native.button === 1) native.preventDefault()
         panState.current = {
           pointer,
           origin: { x: viewport.x, y: viewport.y },
@@ -1432,7 +1436,8 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                 cancelDraft(editingPostIt)
                 return
               }
-              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              // Enter saves, Shift+Enter keeps writing on a new line.
+              if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault()
                 commitDraft(editingPostIt)
               }
