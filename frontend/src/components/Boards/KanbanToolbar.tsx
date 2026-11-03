@@ -1,5 +1,7 @@
 import { ArrowDown, ArrowUp } from "lucide-react"
 
+import type { PostItStatus } from "@/client"
+import { STATUS_LABELS } from "@/components/Boards/PostItNode"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -8,7 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { KanbanSortKey, KanbanSortOrder } from "@/lib/kanban-controls"
+import {
+  KANBAN_STATUSES,
+  type KanbanSortKey,
+  type KanbanSortOrder,
+  PRIORITY_FILTER_OPTIONS,
+  type PriorityFilter,
+} from "@/lib/kanban-controls"
+import { cn } from "@/lib/utils"
 
 const SORT_LABELS: Record<KanbanSortKey, string> = {
   manual: "Manual order",
@@ -16,22 +25,47 @@ const SORT_LABELS: Record<KanbanSortKey, string> = {
   "due-date": "Due date",
 }
 
+const PRIORITY_LABELS: Record<PriorityFilter, string> = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+  NONE: "No priority",
+}
+
+/** Active option: a neutral pill on the muted control background. */
+function chipClass(active: boolean) {
+  return cn(
+    "h-8 px-3 text-sm",
+    active
+      ? "bg-background font-medium shadow-sm hover:bg-background hover:text-foreground"
+      : "text-muted-foreground hover:bg-transparent hover:text-foreground",
+  )
+}
+
 interface KanbanToolbarProps {
   sortKey: KanbanSortKey
   sortOrder: KanbanSortOrder
   onSortKeyChange: (key: KanbanSortKey) => void
   onSortOrderChange: (order: KanbanSortOrder) => void
+  statuses: PostItStatus[]
+  priorities: PriorityFilter[]
+  onToggleStatus: (status: PostItStatus) => void
+  onTogglePriority: (priority: PriorityFilter) => void
 }
 
 /**
- * Controls above the kanban columns. Every control only rearranges the
- * already fetched cards client-side; the shared query stays untouched.
+ * Controls above the kanban columns. Every control only rearranges or hides
+ * the already fetched cards client-side; the shared query stays untouched.
  */
 export function KanbanToolbar({
   sortKey,
   sortOrder,
   onSortKeyChange,
   onSortOrderChange,
+  statuses,
+  priorities,
+  onToggleStatus,
+  onTogglePriority,
 }: KanbanToolbarProps) {
   const canSort = sortKey !== "manual"
 
@@ -84,6 +118,46 @@ export function KanbanToolbar({
           )}
         </Button>
       </div>
+
+      <fieldset
+        aria-label="Filter columns by status"
+        className="m-0 flex items-center gap-1 rounded-lg border-0 bg-muted p-1"
+      >
+        {KANBAN_STATUSES.map((status) => (
+          <Button
+            key={status}
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-pressed={statuses.includes(status)}
+            data-testid={`kanban-filter-status-${status}`}
+            onClick={() => onToggleStatus(status)}
+            className={chipClass(statuses.includes(status))}
+          >
+            {STATUS_LABELS[status]}
+          </Button>
+        ))}
+      </fieldset>
+
+      <fieldset
+        aria-label="Filter post-its by priority"
+        className="m-0 flex items-center gap-1 rounded-lg border-0 bg-muted p-1"
+      >
+        {PRIORITY_FILTER_OPTIONS.map((priority) => (
+          <Button
+            key={priority}
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-pressed={priorities.includes(priority)}
+            data-testid={`kanban-filter-priority-${priority}`}
+            onClick={() => onTogglePriority(priority)}
+            className={chipClass(priorities.includes(priority))}
+          >
+            {PRIORITY_LABELS[priority]}
+          </Button>
+        ))}
+      </fieldset>
     </div>
   )
 }
