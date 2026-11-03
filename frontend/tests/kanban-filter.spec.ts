@@ -67,9 +67,7 @@ async function setCardMeta(
 }
 
 function cardsIn(page: Page, status: string) {
-  return page
-    .getByTestId(`kanban-column-${status}`)
-    .getByTestId("kanban-card")
+  return page.getByTestId(`kanban-column-${status}`).getByTestId("kanban-card")
 }
 
 test.describe("Kanban filteren", () => {
