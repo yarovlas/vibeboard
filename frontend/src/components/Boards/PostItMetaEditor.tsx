@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { type BoardViewport, scaledOverlayStyle } from "@/lib/board-viewport"
 
 const PRIORITY_LABELS: Record<PostItPriority, string> = {
   LOW: "LOW",
@@ -154,6 +155,7 @@ interface PostItMetaEditorProps {
   dueDate: string | null
   x: number
   y: number
+  viewport: BoardViewport
   onStatusChange: (status: PostItStatus) => void
   onPriorityChange: (priority: PostItPriority | null) => void
   onDueDateChange: (dueDate: string | null) => void
@@ -174,6 +176,7 @@ export function PostItMetaEditor({
   dueDate,
   x,
   y,
+  viewport,
   onStatusChange,
   onPriorityChange,
   onDueDateChange,
@@ -186,7 +189,7 @@ export function PostItMetaEditor({
       aria-label="Post-it metadata"
       data-testid="post-it-meta-editor"
       data-postit-editor-ui
-      style={{ left: x, top: y + POSTIT_HEIGHT - 16 + 6 }}
+      style={scaledOverlayStyle(viewport, x, y + POSTIT_HEIGHT - 16 + 6)}
       // Keep the text editor focused while the panel is used: a blur would
       // commit the draft and unmount this panel mid-interaction.
       onMouseDown={(event) => {

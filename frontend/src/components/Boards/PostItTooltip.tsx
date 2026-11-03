@@ -10,6 +10,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { type BoardViewport, scaledOverlayStyle } from "@/lib/board-viewport"
 
 const PRIORITY_LABELS: Record<string, string> = {
   LOW: "Low",
@@ -20,6 +21,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 interface PostItTooltipProps {
   postit: BoardPostIt
   open: boolean
+  viewport: BoardViewport
 }
 
 /**
@@ -28,7 +30,7 @@ interface PostItTooltipProps {
  * the card's position and the tooltip opens purely on hover state reported
  * by the Konva shape.
  */
-export function PostItTooltip({ postit, open }: PostItTooltipProps) {
+export function PostItTooltip({ postit, open, viewport }: PostItTooltipProps) {
   const rows: string[] = [
     `Status: ${STATUS_LABELS[postit.status as PostItStatus] ?? postit.status}`,
   ]
@@ -49,8 +51,7 @@ export function PostItTooltip({ postit, open }: PostItTooltipProps) {
           className="pointer-events-none absolute"
           data-testid="post-it-tooltip-proxy"
           style={{
-            left: postit.x,
-            top: postit.y,
+            ...scaledOverlayStyle(viewport, postit.x, postit.y),
             width: POSTIT_WIDTH,
             height: POSTIT_HEIGHT,
           }}

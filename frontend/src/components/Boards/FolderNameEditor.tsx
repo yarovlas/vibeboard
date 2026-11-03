@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react"
 
 import { FOLDER_CORNER_RADIUS } from "@/components/Boards/FolderNode"
 import { POSTIT_HEIGHT, POSTIT_WIDTH } from "@/components/Boards/PostItNode"
+import { type BoardViewport, scaledOverlayStyle } from "@/lib/board-viewport"
 
 interface FolderNameEditorProps {
   initialName: string
   x: number
   y: number
+  viewport: BoardViewport
   color: string
   onCommit: (name: string) => void
   onCancel: () => void
@@ -16,6 +18,7 @@ export function FolderNameEditor({
   initialName,
   x,
   y,
+  viewport,
   color,
   onCommit,
   onCancel,
@@ -48,8 +51,7 @@ export function FolderNameEditor({
       placeholder="Name this group..."
       spellCheck
       style={{
-        left: x,
-        top: y,
+        ...scaledOverlayStyle(viewport, x, y),
         width: POSTIT_WIDTH,
         height: POSTIT_HEIGHT,
         borderRadius: FOLDER_CORNER_RADIUS,
