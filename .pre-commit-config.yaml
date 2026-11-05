@@ -21,7 +21,7 @@ repos:
     rev: 8a48f81b6c64dcfea44b3633223084c4be58ac5f # frozen: v1.49.0
     hooks:
       - id: typos
-        args: [--force-exclude]
+        args: [--force-exclude, --config, pyproject.toml]
   - repo: local
     hooks:
       - id: local-biome-check
