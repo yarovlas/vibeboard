@@ -31,9 +31,11 @@ function BoardContent() {
   const { view } = useBoardView()
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">{board.name}</h1>
+    <div className="flex w-full min-w-0 flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6 md:p-8">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="min-w-0 text-xl font-bold tracking-tight break-words sm:text-2xl">
+          {board.name}
+        </h1>
         <p className="text-sm text-muted-foreground">
           Last updated{" "}
           {board.updated_at ? new Date(board.updated_at).toLocaleString() : ""}

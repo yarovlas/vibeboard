@@ -13,6 +13,7 @@ export function ViewToggle() {
   return (
     <fieldset
       aria-label="View"
+      data-testid="view-toggle"
       className="m-0 flex items-center gap-1 rounded-lg border-0 bg-muted p-1"
     >
       <Button
