@@ -188,7 +188,7 @@ interface KanbanBoardProps {
  */
 export function KanbanBoard({ boardId }: KanbanBoardProps) {
   const queryClient = useQueryClient()
-  const { showErrorToast } = useCustomToast()
+  const { showErrorToast, showSuccessToast } = useCustomToast()
   const { data: postits } = useSuspenseQuery(getPostitsQueryOptions(boardId))
   const [activeDrag, setActiveDrag] = useState<{
     id: string
@@ -298,6 +298,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       void queryClient.invalidateQueries({
         queryKey: getBoardQueryOptions(boardId).queryKey,
       })
+      showSuccessToast("Post-it updated")
     },
   })
 
@@ -321,6 +322,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       void queryClient.invalidateQueries({
         queryKey: getBoardQueryOptions(boardId).queryKey,
       })
+      showSuccessToast("Post-it deleted")
     },
   })
 
@@ -419,7 +421,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     <section
       aria-label="Kanban board"
       data-testid="kanban-board"
-      className="flex min-w-0 flex-1 flex-col"
+      className="flex min-w-0 flex-1 flex-col motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
     >
       <p className="sr-only">
         Drag a post-it to another column. With a keyboard, focus a card and

@@ -23,7 +23,7 @@ function UserInfo({ fullName, email }: UserInfoProps) {
   return (
     <div className="flex w-full min-w-0 items-center gap-2.5">
       <Avatar className="size-8">
-        <AvatarFallback className="bg-zinc-600 text-white">
+        <AvatarFallback className="bg-primary text-primary-foreground">
           {getInitials(fullName || "User")}
         </AvatarFallback>
       </Avatar>
@@ -55,7 +55,7 @@ export function UserMenu() {
           aria-label="My profile"
         >
           <Avatar className="size-8">
-            <AvatarFallback className="bg-zinc-600 text-xs text-white">
+            <AvatarFallback className="bg-primary text-xs text-primary-foreground">
               {getInitials(user?.full_name || "User")}
             </AvatarFallback>
           </Avatar>

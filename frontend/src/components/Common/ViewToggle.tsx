@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button"
 import { useBoardView } from "@/hooks/board-view"
-import { cn } from "@/lib/utils"
+import {
+  segmentedControlClass,
+  segmentedItemClass,
+} from "@/lib/segmented-control"
 
 /**
  * Segmented control shown in the header on whiteboard pages to switch
@@ -14,19 +17,14 @@ export function ViewToggle() {
     <fieldset
       aria-label="View"
       data-testid="view-toggle"
-      className="m-0 flex items-center gap-1 rounded-lg border-0 bg-muted p-1"
+      className={segmentedControlClass}
     >
       <Button
         size="sm"
         variant="ghost"
         aria-pressed={view === "whiteboard"}
         onClick={() => setView("whiteboard")}
-        className={cn(
-          "h-8 px-3 text-sm",
-          view === "whiteboard"
-            ? "bg-background font-medium shadow-sm hover:bg-background hover:text-foreground"
-            : "text-muted-foreground hover:bg-transparent hover:text-foreground",
-        )}
+        className={segmentedItemClass(view === "whiteboard")}
       >
         Whiteboard view
       </Button>
@@ -35,12 +33,7 @@ export function ViewToggle() {
         variant="ghost"
         aria-pressed={view === "kanban"}
         onClick={() => setView("kanban")}
-        className={cn(
-          "h-8 px-3 text-sm",
-          view === "kanban"
-            ? "bg-background font-medium shadow-sm hover:bg-background hover:text-foreground"
-            : "text-muted-foreground hover:bg-transparent hover:text-foreground",
-        )}
+        className={segmentedItemClass(view === "kanban")}
       >
         Kanban view
       </Button>

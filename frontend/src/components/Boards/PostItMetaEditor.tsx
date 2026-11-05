@@ -185,7 +185,7 @@ export function PostItMetaEditor({
 }: PostItMetaEditorProps) {
   return (
     <fieldset
-      className="absolute z-10 m-0 flex w-[204px] flex-col gap-2 rounded-[10px] border border-slate-200 bg-background px-3 py-2 shadow-lg"
+      className="absolute z-10 m-0 flex w-[204px] flex-col gap-2 rounded-[10px] border border-border bg-background px-3 py-2 shadow-lg"
       aria-label="Post-it metadata"
       data-testid="post-it-meta-editor"
       data-postit-editor-ui

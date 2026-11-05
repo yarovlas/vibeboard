@@ -1,9 +1,11 @@
 import type { KonvaEventObject } from "konva/lib/Node"
+import { useState } from "react"
 import { Group, Rect, Text } from "react-konva"
 import { CanvasDeleteButton } from "@/components/Boards/CanvasDeleteButton"
 import { POSTIT_HEIGHT, POSTIT_WIDTH } from "@/components/Boards/PostItNode"
 import { useFadeIn } from "@/hooks/useMountAnimation"
 import { useSuppressClickAfterDrag } from "@/hooks/useSuppressClickAfterDrag"
+import { setCanvasCursor } from "@/lib/konva-cursor"
 
 export const FOLDER_CORNER_RADIUS = 18
 export const FOLDER_OUTLINE = "#1F2937"
@@ -69,6 +71,10 @@ export function FolderNode({
   // Fade-in for collapsing. Opacity-only: scaling would move hit areas
   // and misdirect fast clicks.
   const popRef = useFadeIn({ delay: enterDelay, duration: 0.26 })
+  // Hover and drag only lift the shadow and swap the cursor; nothing scales,
+  // so the hit area stays exactly where it is.
+  const [isHovered, setIsHovered] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   // Clicking expands, dragging moves — suppress the click that fires after a drag.
   const { markDragEnd, wasJustDragging } = useSuppressClickAfterDrag()
   const handleClick = (event: KonvaEventObject<MouseEvent>) => {
@@ -83,10 +89,29 @@ export function FolderNode({
     onExpand()
   }
 
+  const handleDragStart = (event: KonvaEventObject<DragEvent>) => {
+    setIsDragging(true)
+    setCanvasCursor(event, "grabbing")
+  }
+
   const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
     event.cancelBubble = true
+    setIsDragging(false)
+    setCanvasCursor(event, "grab")
     markDragEnd()
     onDragEnd?.(color, { x: event.target.x(), y: event.target.y() })
+  }
+
+  const handleMouseEnter = (event: KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true
+    setIsHovered(true)
+    setCanvasCursor(event, "grab")
+  }
+
+  const handleMouseLeave = (event: KonvaEventObject<MouseEvent>) => {
+    event.cancelBubble = true
+    setIsHovered(false)
+    if (!event.target.isDragging()) setCanvasCursor(event, "")
   }
 
   const displayLabel = name.trim() ? name : label
@@ -99,6 +124,9 @@ export function FolderNode({
       dragBoundFunc={dragBoundFunc}
       onClick={handleClick}
       onTap={handleTap}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <Group
@@ -116,9 +144,9 @@ export function FolderNode({
           strokeWidth={3}
           cornerRadius={FOLDER_CORNER_RADIUS}
           shadowColor="#92400E"
-          shadowBlur={10}
-          shadowOpacity={0.16}
-          shadowOffsetY={3}
+          shadowBlur={isDragging ? 22 : isHovered ? 16 : 10}
+          shadowOpacity={isDragging ? 0.3 : isHovered ? 0.24 : 0.16}
+          shadowOffsetY={isDragging ? 6 : isHovered ? 5 : 3}
           perfectDrawEnabled={false}
         />
         {displayLabel && (

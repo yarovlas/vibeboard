@@ -37,7 +37,7 @@ export function KanbanCardSurface({
     <div
       data-testid="kanban-card-surface"
       className={cn(
-        "min-w-0 rounded-lg border border-black/5 p-3 text-slate-900 shadow-sm",
+        "min-w-0 rounded-lg border border-black/5 p-3 text-slate-900 shadow-sm transition-shadow duration-150 group-hover:shadow-md",
         className,
       )}
       style={{ backgroundColor: postit.color || POSTIT_DEFAULT_COLOR }}
@@ -102,7 +102,7 @@ export function KanbanCard({ postit, onEdit }: KanbanCardProps) {
     <li
       data-testid="kanban-card"
       data-postit-id={postit.id}
-      className="relative"
+      className="group relative"
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: dnd-kit makes this surface focusable and keyboard-operable, and sets role="button" via its attributes. */}
       {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: dnd-kit spreads role="button" onto this surface at runtime. */}
@@ -128,7 +128,7 @@ export function KanbanCard({ postit, onEdit }: KanbanCardProps) {
         aria-label="Edit post-it"
         data-testid="kanban-card-edit"
         onClick={() => onEdit?.(postit)}
-        className="absolute top-2 right-2 text-slate-600 hover:bg-black/5 hover:text-slate-900"
+        className="absolute top-2 right-2 text-slate-600 transition-colors hover:bg-black/5 hover:text-slate-900"
       >
         <Pencil aria-hidden="true" />
       </Button>

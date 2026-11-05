@@ -117,7 +117,7 @@ export function KanbanPostItDialog({
                   data-testid={`kanban-postit-color-${swatch.name}`}
                   onClick={() => update({ color: swatch.value })}
                   className={cn(
-                    "size-7 rounded-full border border-black/10",
+                    "size-7 rounded-full border border-black/10 transition-[transform,box-shadow] duration-150 hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none",
                     selected && "ring-2 ring-ring ring-offset-2",
                   )}
                   style={{ backgroundColor: swatch.value }}
