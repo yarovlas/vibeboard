@@ -128,9 +128,9 @@ function BoardsListContent() {
           key={board.id}
           to="/boards/$boardId"
           params={{ boardId: board.id }}
-          className="group flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-primary/50 hover:shadow-md"
+          className="group flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-xs outline-none transition-[border-color,box-shadow] duration-150 hover:border-primary/50 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <span className="font-semibold leading-snug group-hover:text-primary">
+          <span className="font-semibold leading-snug transition-colors group-hover:text-primary">
             {board.name}
           </span>
           <span className="text-xs text-muted-foreground">

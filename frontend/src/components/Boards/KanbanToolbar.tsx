@@ -18,7 +18,10 @@ import {
   PRIORITY_FILTER_OPTIONS,
   type PriorityFilter,
 } from "@/lib/kanban-controls"
-import { cn } from "@/lib/utils"
+import {
+  segmentedControlClass,
+  segmentedItemClass,
+} from "@/lib/segmented-control"
 
 const SORT_LABELS: Record<KanbanSortKey, string> = {
   manual: "Manual order",
@@ -31,16 +34,6 @@ const PRIORITY_LABELS: Record<PriorityFilter, string> = {
   MEDIUM: "MEDIUM",
   HIGH: "HIGH",
   NONE: "No priority",
-}
-
-/** Active option: a neutral pill on the muted control background. */
-function chipClass(active: boolean) {
-  return cn(
-    "h-8 px-3 text-sm",
-    active
-      ? "bg-background font-medium shadow-sm hover:bg-background hover:text-foreground"
-      : "text-muted-foreground hover:bg-transparent hover:text-foreground",
-  )
 }
 
 interface KanbanToolbarProps {
@@ -158,7 +151,7 @@ export function KanbanToolbar({
 
       <fieldset
         aria-label="Filter columns by status"
-        className="m-0 flex flex-wrap items-center gap-1 rounded-lg border-0 bg-muted p-1"
+        className={segmentedControlClass}
       >
         {KANBAN_STATUSES.map((status) => (
           <Button
@@ -169,7 +162,7 @@ export function KanbanToolbar({
             aria-pressed={statuses.includes(status)}
             data-testid={`kanban-filter-status-${status}`}
             onClick={() => onToggleStatus(status)}
-            className={chipClass(statuses.includes(status))}
+            className={segmentedItemClass(statuses.includes(status))}
           >
             {STATUS_LABELS[status]}
           </Button>
@@ -178,7 +171,7 @@ export function KanbanToolbar({
 
       <fieldset
         aria-label="Filter post-its by priority"
-        className="m-0 flex flex-wrap items-center gap-1 rounded-lg border-0 bg-muted p-1"
+        className={segmentedControlClass}
       >
         {PRIORITY_FILTER_OPTIONS.map((priority) => (
           <Button
@@ -189,7 +182,7 @@ export function KanbanToolbar({
             aria-pressed={priorities.includes(priority)}
             data-testid={`kanban-filter-priority-${priority}`}
             onClick={() => onTogglePriority(priority)}
-            className={chipClass(priorities.includes(priority))}
+            className={segmentedItemClass(priorities.includes(priority))}
           >
             {PRIORITY_LABELS[priority]}
           </Button>

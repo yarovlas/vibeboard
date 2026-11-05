@@ -46,7 +46,7 @@ export function FolderNameEditor({
     <textarea
       ref={textareaRef}
       aria-label="Folder name"
-      className="absolute z-10 resize-none border border-amber-300 p-4 text-center text-lg font-medium text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
+      className="absolute z-10 resize-none border border-black/10 p-4 text-center text-lg font-medium text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-ring"
       data-testid="folder-name-editor"
       placeholder="Name this group..."
       spellCheck

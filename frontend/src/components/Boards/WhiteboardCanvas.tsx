@@ -4,6 +4,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import type { KonvaEventObject } from "konva/lib/Node"
+import { StickyNote } from "lucide-react"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Layer, Stage } from "react-konva"
 import type { BoardPublic } from "@/client"
@@ -70,7 +71,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const handledIds = useRef(new Set<string>())
   const queryClient = useQueryClient()
-  const { showErrorToast } = useCustomToast()
+  const { showErrorToast, showSuccessToast } = useCustomToast()
   const { data: postits } = useSuspenseQuery(getPostitsQueryOptions(boardId))
   const { data: board } = useSuspenseQuery(getBoardQueryOptions(boardId))
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
@@ -457,14 +458,14 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (postitId: string) =>
+    mutationFn: ({ id }: { id: string; silent?: boolean }) =>
       PostitsService.deletePostit({
-        path: { board_id: boardId, id: postitId },
+        path: { board_id: boardId, id },
       }),
     onError: (error) => {
       handleError(error, showErrorToast)
     },
-    onSuccess: (_response, postitId) => {
+    onSuccess: (_response, { id: postitId, silent }) => {
       queryClient.setQueryData<BoardPostIt[]>(
         queryKeys.boards.postits(boardId),
         (current) => current?.filter((postit) => postit.id !== postitId),
@@ -481,6 +482,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.boards.detail(boardId),
       })
+      // Deleting a folder removes its members silently and shows one
+      // summary toast instead of one toast per post-it.
+      if (!silent) showSuccessToast("Post-it deleted")
     },
   })
 
@@ -740,6 +744,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       next.some((color) => !collapsedColors.includes(color))
     if (!colorsChanged) return
     setCollapsedColors(next)
+    showSuccessToast("Post-its grouped by color")
   }
 
   const expandAll = () => {
@@ -749,6 +754,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
     for (const color of collapsedColors) delete snapshots[color]
     writeFolderMembers(snapshots)
     setCollapsedColors([])
+    showSuccessToast("Folders expanded")
   }
 
   const expandFolder = (color: string) => {
@@ -1250,7 +1256,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }, [])
 
   return (
-    <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col gap-3 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200">
       <BoardToolbar
         isDrawing={isDrawing}
         penColor={penColor}
@@ -1391,12 +1397,23 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
         )}
 
         {postits.length === 0 && !editingPostIt && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-center">
-            <div>
-              <p className="font-medium">Empty workspace</p>
-              <p className="text-sm text-muted-foreground">
-                Add a post-it to start capturing ideas.
-              </p>
+          <div
+            data-testid="whiteboard-empty-state"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center text-center"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div className="rounded-full bg-muted p-4">
+                <StickyNote
+                  aria-hidden="true"
+                  className="h-8 w-8 text-muted-foreground"
+                />
+              </div>
+              <div>
+                <p className="font-medium">Empty workspace</p>
+                <p className="text-sm text-muted-foreground">
+                  Add a post-it to start capturing ideas.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -1405,7 +1422,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
           <textarea
             ref={editorRef}
             aria-label="Post-it text"
-            className="absolute z-10 resize-none rounded-[10px] border border-amber-300 p-4 text-sm leading-relaxed text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-amber-500"
+            className="absolute z-10 resize-none rounded-[10px] border border-black/10 p-4 text-sm leading-relaxed text-slate-900 shadow-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-ring"
             data-testid="post-it-editor"
             data-postit-editor-ui
             placeholder="Write a thought..."
@@ -1525,7 +1542,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                 variant="destructive"
                 onClick={() => {
                   if (deleteCandidate) {
-                    deleteMutation.mutate(deleteCandidate.id)
+                    deleteMutation.mutate({ id: deleteCandidate.id })
                     setDeleteCandidate(null)
                   }
                 }}
@@ -1562,8 +1579,9 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
                     const deletedColor = folderDeleteCandidate.color
                     clearAutoCollapse(deletedColor)
                     for (const id of folderDeleteCandidate.ids) {
-                      deleteMutation.mutate(id)
+                      deleteMutation.mutate({ id, silent: true })
                     }
+                    showSuccessToast("Folder deleted")
                     const snapshots = { ...folderMembers }
                     delete snapshots[deletedColor]
                     writeFolderMembers(snapshots)

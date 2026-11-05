@@ -1,9 +1,11 @@
 import type { KonvaEventObject } from "konva/lib/Node"
+import { useState } from "react"
 import { Group, Rect, Text } from "react-konva"
 
 import type { PostItPriority, PostItPublic, PostItStatus } from "@/client"
 import { CanvasDeleteButton } from "@/components/Boards/CanvasDeleteButton"
 import { useFadeIn } from "@/hooks/useMountAnimation"
+import { setCanvasCursor } from "@/lib/konva-cursor"
 
 export const POSTIT_WIDTH = 220
 export const POSTIT_HEIGHT = 180
@@ -124,6 +126,10 @@ export function PostItNode({
   // Fade-in so expanding a folder (ungrouping) feels smooth. Opacity-only:
   // scaling would move hit areas and misdirect fast clicks.
   const popRef = useFadeIn({ delay: enterDelay, duration: 0.24 })
+  // Hover and drag only lift the shadow and swap the cursor; the card never
+  // moves or scales, so hit areas stay exactly where they are.
+  const [isHovered, setIsHovered] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   const text = postit.title
     ? `${postit.title}${postit.content ? `\n${postit.content}` : ""}`
@@ -150,18 +156,29 @@ export function PostItNode({
     onSelect?.(postit)
   }
 
+  const handleDragStart = (event: KonvaEventObject<DragEvent>) => {
+    setIsDragging(true)
+    setCanvasCursor(event, "grabbing")
+  }
+
   const handleDragEnd = (event: KonvaEventObject<DragEvent>) => {
     event.cancelBubble = true
+    setIsDragging(false)
+    setCanvasCursor(event, "grab")
     onDragEnd?.(postit, { x: event.target.x(), y: event.target.y() })
   }
 
   const handleMouseEnter = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
+    setIsHovered(true)
+    setCanvasCursor(event, "grab")
     onHoverChange?.(postit, true)
   }
 
   const handleMouseLeave = (event: KonvaEventObject<MouseEvent>) => {
     event.cancelBubble = true
+    setIsHovered(false)
+    if (!event.target.isDragging()) setCanvasCursor(event, "")
     onHoverChange?.(postit, false)
   }
 
@@ -177,6 +194,7 @@ export function PostItNode({
       onDblClick={handleDoubleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <Group
@@ -192,9 +210,9 @@ export function PostItNode({
           fill={postit.color || POSTIT_DEFAULT_COLOR}
           cornerRadius={10}
           shadowColor="#92400E"
-          shadowBlur={12}
-          shadowOpacity={0.18}
-          shadowOffsetY={4}
+          shadowBlur={isDragging ? 24 : isHovered ? 18 : 12}
+          shadowOpacity={isDragging ? 0.3 : isHovered ? 0.26 : 0.18}
+          shadowOffsetY={isDragging ? 8 : isHovered ? 6 : 4}
           perfectDrawEnabled={false}
         />
         {!isEditing && postit.priority && (
