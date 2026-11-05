@@ -95,8 +95,11 @@ test.describe("Whiteboard zoomen en pannen", () => {
     await expect(page.getByTestId("zoom-level")).toHaveText("400%")
     const zoomed = await readViewport(page)
     expect(zoomed.zoom).toBe(4)
-    expectClose(zoomed.x, anchor.x - anchor.x * 4)
-    expectClose(zoomed.y, anchor.y - anchor.y * 4)
+    // Rounding of the canvas' CSS width can shift the anchor by a fraction of
+    // a pixel; at 400% that becomes a couple of pixels. Allow for that while
+    // still proving the point under the cursor stays put.
+    expectClose(zoomed.x, anchor.x - anchor.x * 4, 3)
+    expectClose(zoomed.y, anchor.y - anchor.y * 4, 3)
 
     for (let step = 0; step < 45; step++) {
       await page.mouse.wheel(0, 100)
