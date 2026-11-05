@@ -1250,7 +1250,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
   }, [])
 
   return (
-    <div className="flex min-h-[60vh] flex-1 flex-col gap-3">
+    <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col gap-3">
       <BoardToolbar
         isDrawing={isDrawing}
         penColor={penColor}
@@ -1278,7 +1278,7 @@ export function WhiteboardCanvas({ boardId }: WhiteboardCanvasProps) {
       <section
         ref={canvasRef}
         className={cn(
-          "relative min-h-[420px] flex-1 overflow-hidden rounded-xl border bg-background",
+          "relative min-h-[22rem] flex-1 overflow-hidden rounded-xl border bg-background sm:min-h-[26rem]",
           isPanning && "cursor-grabbing",
         )}
         data-testid="whiteboard-stage"

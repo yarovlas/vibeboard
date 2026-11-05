@@ -142,7 +142,7 @@ function KanbanColumn({ status, cards, onEdit }: KanbanColumnProps) {
       aria-labelledby={headingId}
       data-testid={`kanban-column-${status}`}
       className={cn(
-        "flex min-w-[16rem] flex-1 flex-col rounded-xl border bg-muted/30 transition-colors",
+        "flex min-w-[16rem] flex-1 snap-start flex-col rounded-xl border bg-muted/30 transition-colors",
         isOver && "border-primary/60 bg-primary/5",
       )}
     >
@@ -454,7 +454,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       >
         <div
           data-testid="kanban-columns"
-          className="flex min-h-[24rem] flex-1 items-stretch gap-4 overflow-x-auto pb-2"
+          className="flex min-h-[24rem] flex-1 snap-x snap-mandatory items-stretch gap-4 overflow-x-auto overscroll-x-contain pb-2"
         >
           {KANBAN_STATUSES.filter((status) =>
             filters.statuses.includes(status),

@@ -95,9 +95,9 @@ export function KanbanToolbar({
       role="toolbar"
       aria-label="Kanban controls"
       data-testid="kanban-toolbar"
-      className="mb-3 flex flex-wrap items-center gap-3"
+      className="mb-3 flex flex-wrap items-center gap-2 sm:gap-3"
     >
-      <label className="relative flex items-center">
+      <label className="relative flex w-full items-center sm:w-auto">
         <Search
           aria-hidden="true"
           className="pointer-events-none absolute left-2 size-4 text-muted-foreground"
@@ -109,7 +109,7 @@ export function KanbanToolbar({
           placeholder="Search post-its"
           aria-label="Search post-its"
           data-testid="kanban-search"
-          className="h-8 w-56 rounded-md border border-input bg-transparent pr-3 pl-8 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 w-full rounded-md border border-input bg-transparent pr-3 pl-8 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-56"
         />
       </label>
 
@@ -158,7 +158,7 @@ export function KanbanToolbar({
 
       <fieldset
         aria-label="Filter columns by status"
-        className="m-0 flex items-center gap-1 rounded-lg border-0 bg-muted p-1"
+        className="m-0 flex flex-wrap items-center gap-1 rounded-lg border-0 bg-muted p-1"
       >
         {KANBAN_STATUSES.map((status) => (
           <Button
@@ -178,7 +178,7 @@ export function KanbanToolbar({
 
       <fieldset
         aria-label="Filter post-its by priority"
-        className="m-0 flex items-center gap-1 rounded-lg border-0 bg-muted p-1"
+        className="m-0 flex flex-wrap items-center gap-1 rounded-lg border-0 bg-muted p-1"
       >
         {PRIORITY_FILTER_OPTIONS.map((priority) => (
           <Button

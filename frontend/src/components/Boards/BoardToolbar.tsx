@@ -66,13 +66,19 @@ export function BoardToolbar({
       role="toolbar"
       aria-label="Whiteboard tools"
     >
-      <p className="text-sm text-muted-foreground">
+      <p
+        data-testid="board-toolbar-help"
+        className="hidden max-w-prose text-sm text-muted-foreground lg:block"
+      >
         {isDrawing
           ? "Draw on the canvas. Switch drawing off to move post-its again."
           : "Double-click the canvas to add a post-it. Click a post-it to select it. Group bundles colors into folders. Rename a folder with its ✎ button."}
       </p>
-      <div className="flex items-center gap-2">
-        <fieldset className="flex items-center gap-1" aria-label="Zoom">
+      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+        <fieldset
+          className="flex shrink-0 items-center gap-1"
+          aria-label="Zoom"
+        >
           <Button
             type="button"
             variant="outline"
@@ -115,7 +121,7 @@ export function BoardToolbar({
           </Button>
         </fieldset>
         <fieldset
-          className="flex items-center gap-1"
+          className="flex shrink-0 items-center gap-1"
           aria-label="Post-it color"
         >
           <legend className="sr-only">Post-it color</legend>
@@ -187,8 +193,8 @@ export function BoardToolbar({
         </Button>
         {isDrawing && (
           <>
-            <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              Pen color
+            <label className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+              <span className="hidden sm:inline">Pen color</span>
               <input
                 type="color"
                 aria-label="Pen color"
@@ -198,8 +204,8 @@ export function BoardToolbar({
                 data-testid="pen-color"
               />
             </label>
-            <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              Pen width
+            <label className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
+              <span className="hidden sm:inline">Pen width</span>
               <select
                 aria-label="Pen width"
                 value={penWidth}
@@ -224,13 +230,22 @@ export function BoardToolbar({
           onClick={onToggleDrawing}
           data-testid="drawing-toggle"
           aria-pressed={isDrawing}
+          aria-label={isDrawing ? "Drawing..." : "Draw"}
+          title={isDrawing ? "Stop drawing" : "Draw"}
         >
           <Pencil />
-          {isDrawing ? "Drawing..." : "Draw"}
+          <span className="hidden sm:inline">
+            {isDrawing ? "Drawing..." : "Draw"}
+          </span>
         </Button>
-        <Button type="button" onClick={onAddPostIt} disabled={isDrawing}>
+        <Button
+          type="button"
+          onClick={onAddPostIt}
+          disabled={isDrawing}
+          aria-label="Add post-it"
+        >
           <Plus />
-          Add post-it
+          <span className="hidden sm:inline">Add post-it</span>
         </Button>
       </div>
     </div>
