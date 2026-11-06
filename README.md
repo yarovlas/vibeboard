@@ -135,6 +135,7 @@ docs/
 
 - [Testplan](./docs/Testplan.md) — scope, strategie, omgeving en testgevallen
 - [Testrapport](./docs/Testrapport.md) — resultaten en de gedocumenteerde bugs #56 en #57
+- [Codeconventies](./docs/Codeconventies.md) — afspraken voor branches, commits, code, tests en documentatie
 - [Ontwikkelomgeving](./development.md) — Docker Compose, `.env`, migraties en deployment
 - [Backend](./backend/README.md) en [frontend](./frontend/README.md) — specifieke instructies per laag
 
